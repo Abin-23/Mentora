@@ -55,7 +55,8 @@ export class AuthController {
   googleAuthRedirect(@Req() req: any, @Res() res: Response) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const token = req.user.access_token;
-    res.redirect(`http://localhost:5173/login?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/login?token=${token}`);
   }
 
   @Get('github')
@@ -67,6 +68,7 @@ export class AuthController {
   githubAuthRedirect(@Req() req: any, @Res() res: Response) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const token = req.user.access_token;
-    res.redirect(`http://localhost:5173/login?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/login?token=${token}`);
   }
 }

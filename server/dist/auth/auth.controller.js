@@ -37,12 +37,14 @@ let AuthController = class AuthController {
     async googleAuth() { }
     googleAuthRedirect(req, res) {
         const token = req.user.access_token;
-        res.redirect(`http://localhost:5173/login?token=${token}`);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/login?token=${token}`);
     }
     async githubAuth() { }
     githubAuthRedirect(req, res) {
         const token = req.user.access_token;
-        res.redirect(`http://localhost:5173/login?token=${token}`);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/login?token=${token}`);
     }
 };
 exports.AuthController = AuthController;

@@ -21,7 +21,7 @@ let GithubStrategy = class GithubStrategy extends (0, passport_1.PassportStrateg
             clientID: process.env.GITHUB_CLIENT_ID || 'github_client_id',
             clientSecret: process.env.GITHUB_CLIENT_SECRET || 'github_client_secret',
             callbackURL: process.env.GITHUB_CALLBACK_URL ||
-                'http://localhost:3000/auth/github/callback',
+                `${process.env.BACKEND_URL || 'http://localhost:3000'}/auth/github/callback`,
             scope: ['user:email'],
         });
         this.authService = authService;

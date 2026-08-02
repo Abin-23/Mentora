@@ -62,7 +62,8 @@ let MailService = MailService_1 = class MailService {
     }
     async sendPasswordResetEmail(to, token, expiresMs) {
         const expiresParam = expiresMs ? `&expires=${expiresMs}` : '';
-        const resetLink = `http://localhost:5173/reset-password?token=${token}${expiresParam}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetLink = `${frontendUrl}/reset-password?token=${token}${expiresParam}`;
         const mailOptions = {
             from: process.env.SMTP_FROM || 'Mentora <noreply@mentora.com>',
             to: to,

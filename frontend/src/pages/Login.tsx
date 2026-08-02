@@ -59,7 +59,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -81,11 +82,13 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:3000/auth/google';
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   const handleGithubLogin = () => {
-    window.location.href = 'http://localhost:3000/auth/github';
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    window.location.href = `${API_URL}/auth/github`;
   };
 
   return (

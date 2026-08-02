@@ -11,7 +11,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       clientSecret: process.env.GITHUB_CLIENT_SECRET || 'github_client_secret',
       callbackURL:
         process.env.GITHUB_CALLBACK_URL ||
-        'http://localhost:3000/auth/github/callback',
+        `${process.env.BACKEND_URL || 'http://localhost:3000'}/auth/github/callback`,
       scope: ['user:email'],
     });
   }

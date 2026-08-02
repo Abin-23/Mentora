@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -87,6 +88,20 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
+      if (!user.password || user.provider !== 'local') {
+        let providerName = 'social login';
+        if (user.provider === 'google') providerName = 'Google';
+        else if (user.provider === 'github') providerName = 'GitHub';
+        else if (user.provider && user.provider !== 'local') {
+          providerName =
+            user.provider.charAt(0).toUpperCase() + user.provider.slice(1);
+        }
+
+        throw new BadRequestException(
+          `This account was created using ${providerName}. Please sign in using ${providerName}.`,
+        );
+      }
+
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour from now
 
@@ -99,7 +114,11 @@ export class AuthService {
       });
 
       // Send the actual email
-      await this.mailService.sendPasswordResetEmail(email, resetToken, resetTokenExpires.getTime());
+      await this.mailService.sendPasswordResetEmail(
+        email,
+        resetToken,
+        resetTokenExpires.getTime(),
+      );
     }
 
     return {
@@ -120,6 +139,12 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException(
         'Invalid or expired password reset token',
+      );
+    }
+
+    if (!user.password || user.provider !== 'local') {
+      throw new BadRequestException(
+        'Password reset is not supported for social login accounts.',
       );
     }
 

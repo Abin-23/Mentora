@@ -1,5 +1,6 @@
 import { FormEvent, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import disposableDomains from 'disposable-email-domains';
 
 const TIPS = [
   {
@@ -41,17 +42,46 @@ export default function Register() {
     setCurrentTip(TIPS[randomIdx]);
   }, []);
 
+  const validateForm = () => {
+    if (fullName.trim().length < 2) {
+      return 'Full name must be at least 2 characters long.';
+    }
+    
+    if (/\d/.test(fullName)) {
+      return 'Full name cannot contain numbers.';
+    }
+
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(domain)) {
+      return 'Disposable email addresses are not allowed.';
+    }
+
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      return 'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol.';
+    }
+
+    if (password !== confirmPassword) {
+      return 'Passwords do not match.';
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
+
     setError('');
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/auth/register', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: fullName, email, password }),
@@ -59,7 +89,10 @@ export default function Register() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+        const errorMessage = Array.isArray(data.message) 
+          ? data.message[0] 
+          : data.message || 'Registration failed';
+        throw new Error(errorMessage);
       }
 
       navigate('/login');
