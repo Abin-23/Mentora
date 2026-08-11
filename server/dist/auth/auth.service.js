@@ -75,7 +75,7 @@ let AuthService = class AuthService {
                 provider: 'local',
             },
         });
-        const payload = { sub: user.user_id, email: user.email };
+        const payload = { sub: user.user_id, email: user.email, role: user.role };
         return {
             access_token: this.jwtService.sign(payload),
             user: {
@@ -92,11 +92,14 @@ let AuthService = class AuthService {
         if (!user || !user.password) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
+        if (user.status === 'Inactive') {
+            throw new common_1.UnauthorizedException('Your account has been deactivated. Please contact support.');
+        }
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
-        const payload = { sub: user.user_id, email: user.email };
+        const payload = { sub: user.user_id, email: user.email, role: user.role };
         return {
             access_token: this.jwtService.sign(payload),
             user: {
@@ -111,7 +114,7 @@ let AuthService = class AuthService {
         const { email } = forgotPasswordDto;
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (user) {
-            if (!user.password || user.provider !== 'local') {
+            if (user.provider !== 'local') {
                 let providerName = 'social login';
                 if (user.provider === 'google')
                     providerName = 'Google';
@@ -149,7 +152,7 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid or expired password reset token');
         }
-        if (!user.password || user.provider !== 'local') {
+        if (user.provider !== 'local') {
             throw new common_1.BadRequestException('Password reset is not supported for social login accounts.');
         }
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -173,6 +176,13 @@ let AuthService = class AuthService {
                 String(email).split('@')[0];
             const provider_id = profile.id;
             let user = await this.prisma.user.findUnique({ where: { email } });
+            if (user && user.provider && user.provider !== provider) {
+                const pName = user.provider === 'local' ? 'password' : user.provider;
+                throw new common_1.UnauthorizedException(`This email is already associated with a ${pName} account. Please sign in with ${pName}.`);
+            }
+            if (user && user.status === 'Inactive') {
+                throw new common_1.UnauthorizedException('Your account has been deactivated. Please contact support.');
+            }
             if (!user) {
                 user = await this.prisma.user.create({
                     data: {
@@ -189,7 +199,7 @@ let AuthService = class AuthService {
                     data: { provider, provider_id },
                 });
             }
-            const payload = { sub: user.user_id, email: user.email };
+            const payload = { sub: user.user_id, email: user.email, role: user.role };
             return {
                 access_token: this.jwtService.sign(payload),
                 user: {

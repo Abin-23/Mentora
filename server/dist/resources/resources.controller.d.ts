@@ -1,0 +1,100 @@
+import { ResourcesService } from './resources.service';
+import { CreateResourceDto } from './dto/create-resource.dto';
+import { UpdateResourceDto } from './dto/update-resource.dto';
+import { ReorderResourcesDto } from './dto/reorder-resources.dto';
+export declare class ResourcesController {
+    private readonly resourcesService;
+    constructor(resourcesService: ResourcesService);
+    create(topicId: number, req: any, createResourceDto: CreateResourceDto, files: {
+        resourceFile?: Express.Multer.File[];
+        thumbnailFile?: Express.Multer.File[];
+    }): Promise<{
+        status: import(".prisma/client").$Enums.CourseStatus;
+        created_at: Date;
+        description: string | null;
+        updated_at: Date;
+        thumbnail_key: string | null;
+        sequence_number: number;
+        topic_id: number;
+        resource_id: number;
+        resource_title: string;
+        resource_type: import(".prisma/client").$Enums.ResourceType;
+        resource_key: string;
+        file_size: bigint | null;
+        duration_seconds: number | null;
+        is_preview: boolean;
+        uploaded_by: number;
+    }>;
+    findAllByTopic(topicId: number): Promise<{
+        status: import(".prisma/client").$Enums.CourseStatus;
+        created_at: Date;
+        description: string | null;
+        updated_at: Date;
+        thumbnail_key: string | null;
+        sequence_number: number;
+        topic_id: number;
+        resource_id: number;
+        resource_title: string;
+        resource_type: import(".prisma/client").$Enums.ResourceType;
+        resource_key: string;
+        file_size: bigint | null;
+        duration_seconds: number | null;
+        is_preview: boolean;
+        uploaded_by: number;
+    }[]>;
+    reorder(topicId: number, reorderResourcesDto: ReorderResourcesDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    findOne(id: number): Promise<{
+        status: import(".prisma/client").$Enums.CourseStatus;
+        created_at: Date;
+        description: string | null;
+        updated_at: Date;
+        thumbnail_key: string | null;
+        sequence_number: number;
+        topic_id: number;
+        resource_id: number;
+        resource_title: string;
+        resource_type: import(".prisma/client").$Enums.ResourceType;
+        resource_key: string;
+        file_size: bigint | null;
+        duration_seconds: number | null;
+        is_preview: boolean;
+        uploaded_by: number;
+    }>;
+    update(id: number, updateResourceDto: UpdateResourceDto): Promise<{
+        status: import(".prisma/client").$Enums.CourseStatus;
+        created_at: Date;
+        description: string | null;
+        updated_at: Date;
+        thumbnail_key: string | null;
+        sequence_number: number;
+        topic_id: number;
+        resource_id: number;
+        resource_title: string;
+        resource_type: import(".prisma/client").$Enums.ResourceType;
+        resource_key: string;
+        file_size: bigint | null;
+        duration_seconds: number | null;
+        is_preview: boolean;
+        uploaded_by: number;
+    }>;
+    remove(id: number): Promise<{
+        status: import(".prisma/client").$Enums.CourseStatus;
+        created_at: Date;
+        description: string | null;
+        updated_at: Date;
+        thumbnail_key: string | null;
+        sequence_number: number;
+        topic_id: number;
+        resource_id: number;
+        resource_title: string;
+        resource_type: import(".prisma/client").$Enums.ResourceType;
+        resource_key: string;
+        file_size: bigint | null;
+        duration_seconds: number | null;
+        is_preview: boolean;
+        uploaded_by: number;
+    }>;
+}

@@ -20,6 +20,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException();
     }
+    if (user.status === 'Inactive') {
+      throw new UnauthorizedException('Your account has been deactivated.');
+    }
     // Remove password from user object
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;

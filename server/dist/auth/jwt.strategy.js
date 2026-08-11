@@ -31,6 +31,9 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         if (!user) {
             throw new common_1.UnauthorizedException();
         }
+        if (user.status === 'Inactive') {
+            throw new common_1.UnauthorizedException('Your account has been deactivated.');
+        }
         const { password, ...result } = user;
         return result;
     }

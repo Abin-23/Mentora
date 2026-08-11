@@ -46,7 +46,7 @@ export class AuthService {
       },
     });
 
-    const payload = { sub: user.user_id, email: user.email };
+    const payload = { sub: user.user_id, email: user.email, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -66,12 +66,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.status === 'Inactive') {
+      throw new UnauthorizedException(
+        'Your account has been deactivated. Please contact support.',
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: user.user_id, email: user.email };
+    const payload = { sub: user.user_id, email: user.email, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -88,7 +94,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
-      if (!user.password || user.provider !== 'local') {
+      if (user.provider !== 'local') {
         let providerName = 'social login';
         if (user.provider === 'google') providerName = 'Google';
         else if (user.provider === 'github') providerName = 'GitHub';
@@ -142,7 +148,7 @@ export class AuthService {
       );
     }
 
-    if (!user.password || user.provider !== 'local') {
+    if (user.provider !== 'local') {
       throw new BadRequestException(
         'Password reset is not supported for social login accounts.',
       );
@@ -178,6 +184,19 @@ export class AuthService {
 
       let user = await this.prisma.user.findUnique({ where: { email } });
 
+      if (user && user.provider && user.provider !== provider) {
+        const pName = user.provider === 'local' ? 'password' : user.provider;
+        throw new UnauthorizedException(
+          `This email is already associated with a ${pName} account. Please sign in with ${pName}.`,
+        );
+      }
+
+      if (user && user.status === 'Inactive') {
+        throw new UnauthorizedException(
+          'Your account has been deactivated. Please contact support.',
+        );
+      }
+
       if (!user) {
         user = await this.prisma.user.create({
           data: {
@@ -194,7 +213,7 @@ export class AuthService {
         });
       }
 
-      const payload = { sub: user.user_id, email: user.email };
+      const payload = { sub: user.user_id, email: user.email, role: user.role };
       return {
         access_token: this.jwtService.sign(payload),
         user: {

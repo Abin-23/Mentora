@@ -1,4 +1,16 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsStrongPassword, Matches, registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsStrongPassword,
+  Matches,
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+} from 'class-validator';
 import validateEmail from 'deep-email-validator';
 
 @ValidatorConstraint({ async: true })
@@ -6,7 +18,7 @@ export class IsNotDisposableEmailConstraint implements ValidatorConstraintInterf
   async validate(email: any, args: ValidationArguments) {
     if (typeof email !== 'string') return false;
     try {
-      // Validate regex, typo, disposable, and MX records. 
+      // Validate regex, typo, disposable, and MX records.
       // We skip SMTP check because it can be slow and unreliable for some domains.
       const res = await validateEmail({
         email: email,
@@ -28,7 +40,7 @@ export class IsNotDisposableEmailConstraint implements ValidatorConstraintInterf
 }
 
 export function IsNotDisposableEmail(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -52,8 +64,17 @@ export class RegisterDto {
 
   @IsString()
   @IsStrongPassword(
-    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
-    { message: 'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol' }
+    {
+      minLength: 8,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 1,
+    },
+    {
+      message:
+        'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol',
+    },
   )
   password!: string;
 }
@@ -77,8 +98,17 @@ export class ResetPasswordDto {
 
   @IsString()
   @IsStrongPassword(
-    { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
-    { message: 'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol' }
+    {
+      minLength: 8,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 1,
+    },
+    {
+      message:
+        'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol',
+    },
   )
   newPassword!: string;
 }

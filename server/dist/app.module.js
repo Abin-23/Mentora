@@ -13,12 +13,30 @@ const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 const mail_module_1 = require("./mail/mail.module");
+const users_module_1 = require("./users/users.module");
+const categories_module_1 = require("./categories/categories.module");
+const courses_module_1 = require("./courses/courses.module");
+const topics_module_1 = require("./topics/topics.module");
+const resources_module_1 = require("./resources/resources.module");
+const purchases_module_1 = require("./purchases/purchases.module");
+const enrollments_module_1 = require("./enrollments/enrollments.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, auth_module_1.AuthModule, mail_module_1.MailModule],
+        imports: [
+            prisma_module_1.PrismaModule,
+            auth_module_1.AuthModule,
+            mail_module_1.MailModule,
+            users_module_1.UsersModule,
+            categories_module_1.CategoriesModule,
+            courses_module_1.CoursesModule,
+            topics_module_1.TopicsModule,
+            resources_module_1.ResourcesModule,
+            purchases_module_1.PurchasesModule,
+            enrollments_module_1.EnrollmentsModule,
+        ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

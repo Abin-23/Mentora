@@ -3,11 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 
 export default function Index() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [dashboardRoute, setDashboardRoute] = useState('/dashboard');
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (localStorage.getItem('access_token')) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
       setIsAuthenticated(true);
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.role === 'SystemAdmin' || payload.role === 'CourseAdmin') {
+          setDashboardRoute('/admin/dashboard');
+        }
+      } catch (e) {
+        // ignore
+      }
     }
     // Micro-interaction: Mouse tracking for a subtle spotlight effect
     const handleMouseMove = (e: MouseEvent) => {
@@ -56,7 +66,7 @@ export default function Index() {
         </div>
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
-            <button onClick={() => navigate('/dashboard')} className="bg-primary text-on-primary font-label-mono text-label-mono px-6 py-2 rounded-full hover:scale-95 transition-transform cursor-pointer">
+            <button onClick={() => navigate(dashboardRoute)} className="bg-primary text-on-primary font-label-mono text-label-mono px-6 py-2 rounded-full hover:scale-95 transition-transform cursor-pointer">
               Go to Dashboard
             </button>
           ) : (
@@ -82,7 +92,7 @@ export default function Index() {
           </div>
           <div className="flex flex-wrap gap-6 items-center">
             {isAuthenticated ? (
-              <button onClick={() => navigate('/dashboard')} className="bg-accent-neon text-primary font-headline-md text-headline-md px-10 py-5 rounded-full neon-glow hover:scale-105 active:scale-95 transition-all flex items-center gap-3 cursor-pointer">
+              <button onClick={() => navigate(dashboardRoute)} className="bg-accent-neon text-primary font-headline-md text-headline-md px-10 py-5 rounded-full neon-glow hover:scale-105 active:scale-95 transition-all flex items-center gap-3 cursor-pointer">
                 Access Dashboard
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
@@ -162,7 +172,7 @@ export default function Index() {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] flex flex-col items-center justify-center text-center p-10">
             <h2 className="font-headline-lg text-headline-lg text-white mb-6">Ready to disrupt your focus?</h2>
             {isAuthenticated ? (
-              <button onClick={() => navigate('/dashboard')} className="bg-white text-primary font-label-mono text-label-mono px-12 py-4 rounded-full hover:bg-accent-neon transition-colors duration-300 cursor-pointer">
+              <button onClick={() => navigate(dashboardRoute)} className="bg-white text-primary font-label-mono text-label-mono px-12 py-4 rounded-full hover:bg-accent-neon transition-colors duration-300 cursor-pointer">
                 View Your Dashboard
               </button>
             ) : (

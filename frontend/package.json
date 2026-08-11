@@ -12,7 +12,8 @@
   "dependencies": {
     "disposable-email-domains": "^1.0.62",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-phone-number-input": "^3.4.17"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
