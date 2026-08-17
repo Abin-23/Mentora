@@ -251,6 +251,9 @@ export default function ManageCourses() {
                   <button onClick={() => navigate(`/admin/courses/${c.course_id}/topics`)} className="w-8 h-8 rounded-full bg-white text-secondary shadow-md flex items-center justify-center hover:scale-110 transition-transform" title="Manage Topics">
                     <span className="material-symbols-outlined text-sm">library_books</span>
                   </button>
+                  <button onClick={() => navigate(`/admin/courses/${c.course_id}/assessments`)} className="w-8 h-8 rounded-full bg-white text-secondary shadow-md flex items-center justify-center hover:scale-110 transition-transform" title="Manage Assessments">
+                    <span className="material-symbols-outlined text-sm">quiz</span>
+                  </button>
                   <button onClick={() => handleOpenModal(c)} className="w-8 h-8 rounded-full bg-white text-primary shadow-md flex items-center justify-center hover:scale-110 transition-transform" title="Edit Course">
                     <span className="material-symbols-outlined text-sm">edit</span>
                   </button>

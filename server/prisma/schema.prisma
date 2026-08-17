@@ -58,6 +58,21 @@ enum EnrollmentStatus {
   SUSPENDED
 }
 
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ActivityType {
+  RESOURCE_STARTED
+  RESOURCE_PROGRESS
+  RESOURCE_COMPLETED
+  RESOURCE_PAUSED
+  RESOURCE_RESUMED
+  RESOURCE_DOWNLOADED
+}
+
 model User {
   user_id       Int      @id @default(autoincrement())
   full_name     String   @db.VarChar(100)
@@ -69,17 +84,22 @@ model User {
   status        Status   @default(Active)
   created_at    DateTime @default(now()) @db.Timestamp(6)
 
-  provider      String?  @db.VarChar(50)
-  provider_id   String?  @db.VarChar(255)
+  provider    String? @db.VarChar(50)
+  provider_id String? @db.VarChar(255)
 
   reset_token         String?   @db.VarChar(255)
   reset_token_expires DateTime?
 
-  categories          Category[] @relation("CreatedCategories")
-  managed_courses     Course[]   @relation("AdminCourses")
-  uploaded_resources  Resource[] @relation("UploadedResources")
-  purchases           Purchase[] @relation("UserPurchases")
-  enrollments         Enrollment[] @relation("UserEnrollments")
+  categories          Category[]          @relation("CreatedCategories")
+  managed_courses     Course[]            @relation("AdminCourses")
+  uploaded_resources  Resource[]          @relation("UploadedResources")
+  purchases           Purchase[]          @relation("UserPurchases")
+  enrollments         Enrollment[]        @relation("UserEnrollments")
+  created_assessments Assessment[]        @relation("CreatedAssessments")
+  created_questions   Question[]          @relation("CreatedQuestions")
+  assessment_attempts AssessmentAttempt[]
+  learning_progress   LearningProgress[]
+  learning_activities LearningActivity[]
 
   @@map("users")
 }
@@ -94,8 +114,8 @@ model Category {
   created_at    DateTime @default(now()) @db.Timestamp(6)
   updated_at    DateTime @updatedAt @db.Timestamp(6)
 
-  creator       User     @relation("CreatedCategories", fields: [created_by], references: [user_id])
-  courses       Course[] @relation("CategoryCourses")
+  creator User     @relation("CreatedCategories", fields: [created_by], references: [user_id])
+  courses Course[] @relation("CategoryCourses")
 
   @@map("categories")
 }
@@ -119,12 +139,15 @@ model Course {
   created_at          DateTime        @default(now()) @db.Timestamp(6)
   updated_at          DateTime        @updatedAt @db.Timestamp(6)
 
-  category            Category        @relation("CategoryCourses", fields: [category_id], references: [category_id])
-  course_admin        User            @relation("AdminCourses", fields: [course_admin_id], references: [user_id])
+  category     Category @relation("CategoryCourses", fields: [category_id], references: [category_id])
+  course_admin User     @relation("AdminCourses", fields: [course_admin_id], references: [user_id])
 
-  topics              Topic[]         @relation("CourseTopics")
-  purchases           Purchase[]      @relation("CoursePurchases")
-  enrollments         Enrollment[]    @relation("CourseEnrollments")
+  topics              Topic[]            @relation("CourseTopics")
+  purchases           Purchase[]         @relation("CoursePurchases")
+  enrollments         Enrollment[]       @relation("CourseEnrollments")
+  assessments         Assessment[]
+  learning_progress   LearningProgress[]
+  learning_activities LearningActivity[]
 
   @@map("courses")
 }
@@ -142,31 +165,39 @@ model Topic {
   created_at          DateTime        @default(now()) @db.Timestamp(6)
   updated_at          DateTime        @updatedAt @db.Timestamp(6)
 
-  course              Course          @relation("CourseTopics", fields: [course_id], references: [course_id], onDelete: Cascade)
-  resources           Resource[]      @relation("TopicResources")
+  course                   Course                  @relation("CourseTopics", fields: [course_id], references: [course_id], onDelete: Cascade)
+  resources                Resource[]              @relation("TopicResources")
+  assessment_topics        AssessmentTopic[]
+  questions                Question[]
+  assessment_topic_results AssessmentTopicResult[]
+  learning_progress        LearningProgress[]
+  learning_activities      LearningActivity[]
 
   @@map("topics")
 }
 
 model Resource {
-  resource_id        Int          @id @default(autoincrement())
-  topic_id           Int
-  resource_title     String       @db.VarChar(200)
-  description        String?      @db.Text
-  resource_type      ResourceType
-  resource_key       String       @db.VarChar(500)
-  thumbnail_key      String?      @db.VarChar(500)
-  file_size          BigInt?
-  duration_seconds   Int?
-  sequence_number    Int
-  is_preview         Boolean      @default(false)
-  status             CourseStatus @default(Draft)
-  uploaded_by        Int
-  created_at         DateTime     @default(now()) @db.Timestamp(6)
-  updated_at         DateTime     @updatedAt @db.Timestamp(6)
+  resource_id      Int          @id @default(autoincrement())
+  topic_id         Int
+  resource_title   String       @db.VarChar(200)
+  description      String?      @db.Text
+  resource_type    ResourceType
+  resource_key     String       @db.VarChar(500)
+  thumbnail_key    String?      @db.VarChar(500)
+  file_size        BigInt?
+  duration_seconds Int?
+  sequence_number  Int
+  is_preview       Boolean      @default(false)
+  status           CourseStatus @default(Draft)
+  uploaded_by      Int
+  created_at       DateTime     @default(now()) @db.Timestamp(6)
+  updated_at       DateTime     @updatedAt @db.Timestamp(6)
 
-  topic              Topic        @relation("TopicResources", fields: [topic_id], references: [topic_id], onDelete: Cascade)
-  uploader           User         @relation("UploadedResources", fields: [uploaded_by], references: [user_id])
+  topic               Topic              @relation("TopicResources", fields: [topic_id], references: [topic_id], onDelete: Cascade)
+  uploader            User               @relation("UploadedResources", fields: [uploaded_by], references: [user_id])
+  source_questions    Question[]
+  learning_progress   LearningProgress[]
+  learning_activities LearningActivity[]
 
   @@map("resources")
 }
@@ -186,27 +217,312 @@ model Purchase {
   created_at         DateTime      @default(now()) @db.Timestamp(6)
   updated_at         DateTime      @updatedAt @db.Timestamp(6)
 
-  user               User          @relation("UserPurchases", fields: [user_id], references: [user_id])
-  course             Course        @relation("CoursePurchases", fields: [course_id], references: [course_id])
-  enrollments        Enrollment[]  @relation("PurchaseEnrollments")
+  user        User         @relation("UserPurchases", fields: [user_id], references: [user_id])
+  course      Course       @relation("CoursePurchases", fields: [course_id], references: [course_id])
+  enrollments Enrollment[] @relation("PurchaseEnrollments")
 
   @@map("purchases")
 }
 
 model Enrollment {
-  enrollment_id      Int              @id @default(autoincrement())
-  user_id            Int
-  course_id          Int
-  purchase_id        Int?
-  enrollment_status  EnrollmentStatus @default(ACTIVE)
-  enrolled_at        DateTime         @default(now()) @db.Timestamp(6)
-  completed_at       DateTime?        @db.Timestamp(6)
-  created_at         DateTime         @default(now()) @db.Timestamp(6)
-  updated_at         DateTime         @updatedAt @db.Timestamp(6)
+  enrollment_id     Int              @id @default(autoincrement())
+  user_id           Int
+  course_id         Int
+  purchase_id       Int?
+  enrollment_status EnrollmentStatus @default(ACTIVE)
+  enrolled_at       DateTime         @default(now()) @db.Timestamp(6)
+  completed_at      DateTime?        @db.Timestamp(6)
+  created_at        DateTime         @default(now()) @db.Timestamp(6)
+  updated_at        DateTime         @updatedAt @db.Timestamp(6)
 
-  user               User             @relation("UserEnrollments", fields: [user_id], references: [user_id])
-  course             Course           @relation("CourseEnrollments", fields: [course_id], references: [course_id])
-  purchase           Purchase?        @relation("PurchaseEnrollments", fields: [purchase_id], references: [purchase_id])
+  user     User      @relation("UserEnrollments", fields: [user_id], references: [user_id])
+  course   Course    @relation("CourseEnrollments", fields: [course_id], references: [course_id])
+  purchase Purchase? @relation("PurchaseEnrollments", fields: [purchase_id], references: [purchase_id])
 
   @@map("enrollments")
+}
+
+enum AssessmentType {
+  INITIAL
+  PRACTICE
+  FINAL
+  ADAPTIVE
+  TOPIC
+}
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  SHORT_ANSWER
+  CODE
+  SCENARIO
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum GenerationMethod {
+  AI
+  MANUAL
+}
+
+enum QuestionStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ProficiencyLevel {
+  BEGINNER
+  DEVELOPING
+  PROFICIENT
+  ADVANCED
+}
+
+enum EventSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskLevel {
+  NORMAL
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Assessment {
+  assessment_id       Int              @id @default(autoincrement())
+  course_id           Int
+  title               String           @db.VarChar(200)
+  description         String?          @db.Text
+  assessment_type     AssessmentType
+  created_by          Int?
+  is_system_generated Boolean          @default(false)
+  duration_minutes    Int?
+  total_questions     Int
+  passing_percentage  Decimal?         @db.Decimal(5, 2)
+  max_attempts        Int              @default(1)
+  status              AssessmentStatus @default(DRAFT)
+  created_at          DateTime         @default(now()) @db.Timestamp(6)
+  updated_at          DateTime         @updatedAt @db.Timestamp(6)
+
+  course    Course                  @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  creator   User?                   @relation("CreatedAssessments", fields: [created_by], references: [user_id])
+  topics    AssessmentTopic[]
+  questions AssessmentQuestionMap[]
+  attempts  AssessmentAttempt[]
+
+  @@map("assessments")
+}
+
+model AssessmentTopic {
+  assessment_id  Int
+  topic_id       Int
+  question_count Int
+
+  assessment Assessment @relation(fields: [assessment_id], references: [assessment_id], onDelete: Cascade)
+  topic      Topic      @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+
+  @@id([assessment_id, topic_id])
+  @@map("assessment_topics")
+}
+
+model Question {
+  question_id        Int                @id @default(autoincrement())
+  topic_id           Int
+  question_text      String             @db.Text
+  question_type      QuestionType
+  difficulty_level   QuestionDifficulty
+  explanation        String?            @db.Text
+  source_resource_id Int?
+  generation_method  GenerationMethod
+  status             QuestionStatus     @default(DRAFT)
+  created_by         Int?
+  created_at         DateTime           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime           @updatedAt @db.Timestamp(6)
+
+  topic           Topic                   @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+  source_resource Resource?               @relation(fields: [source_resource_id], references: [resource_id])
+  creator         User?                   @relation("CreatedQuestions", fields: [created_by], references: [user_id])
+  options         QuestionOption[]
+  assessments     AssessmentQuestionMap[]
+  student_answers StudentAnswer[]
+
+  @@map("assessment_questions")
+}
+
+model QuestionOption {
+  option_id       Int      @id @default(autoincrement())
+  question_id     Int
+  option_text     String   @db.Text
+  is_correct      Boolean  @default(false)
+  sequence_number Int
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+
+  question        Question        @relation(fields: [question_id], references: [question_id], onDelete: Cascade)
+  student_answers StudentAnswer[]
+
+  @@map("question_options")
+}
+
+model AssessmentQuestionMap {
+  assessment_id   Int
+  question_id     Int
+  sequence_number Int
+  marks           Decimal @default(1.00) @db.Decimal(5, 2)
+
+  assessment Assessment @relation(fields: [assessment_id], references: [assessment_id], onDelete: Cascade)
+  question   Question   @relation(fields: [question_id], references: [question_id], onDelete: Cascade)
+
+  @@id([assessment_id, question_id])
+  @@map("assessment_questions_map")
+}
+
+model AssessmentAttempt {
+  attempt_id     Int           @id @default(autoincrement())
+  assessment_id  Int
+  student_id     Int
+  attempt_number Int
+  started_at     DateTime
+  expires_at     DateTime?
+  submitted_at   DateTime?
+  score          Decimal?      @db.Decimal(8, 2)
+  percentage     Decimal?      @db.Decimal(5, 2)
+  status         AttemptStatus
+  created_at     DateTime      @default(now()) @db.Timestamp(6)
+
+  assessment       Assessment                 @relation(fields: [assessment_id], references: [assessment_id], onDelete: Cascade)
+  student          User                       @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
+  answers          StudentAnswer[]
+  topic_results    AssessmentTopicResult[]
+  security_events  AssessmentSecurityEvent[]
+  integrity_report AssessmentIntegrityReport?
+
+  @@map("assessment_attempts")
+}
+
+model StudentAnswer {
+  answer_id          Int      @id @default(autoincrement())
+  attempt_id         Int
+  question_id        Int
+  selected_option_id Int?
+  answer_text        String?  @db.Text
+  is_correct         Boolean?
+  marks_obtained     Decimal  @default(0.00) @db.Decimal(5, 2)
+  answered_at        DateTime @default(now()) @db.Timestamp(6)
+
+  attempt         AssessmentAttempt @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade)
+  question        Question          @relation(fields: [question_id], references: [question_id], onDelete: Cascade)
+  selected_option QuestionOption?   @relation(fields: [selected_option_id], references: [option_id])
+
+  @@map("student_answers")
+}
+
+model AssessmentTopicResult {
+  topic_result_id     Int              @id @default(autoincrement())
+  attempt_id          Int
+  topic_id            Int
+  questions_attempted Int
+  correct_answers     Int
+  marks_obtained      Decimal          @db.Decimal(8, 2)
+  percentage          Decimal          @db.Decimal(5, 2)
+  proficiency_level   ProficiencyLevel
+
+  attempt AssessmentAttempt @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade)
+  topic   Topic             @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+
+  @@map("assessment_topic_results")
+}
+
+model AssessmentSecurityEvent {
+  event_id       Int           @id @default(autoincrement())
+  attempt_id     Int
+  event_type     String        @db.VarChar(50)
+  severity       EventSeverity
+  event_time     DateTime      @default(now()) @db.Timestamp(6)
+  event_metadata Json?
+
+  attempt AssessmentAttempt @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade)
+
+  @@map("assessment_security_events")
+}
+
+model AssessmentIntegrityReport {
+  report_id              Int       @id @default(autoincrement())
+  attempt_id             Int       @unique
+  integrity_score        Decimal   @db.Decimal(5, 2)
+  tab_switch_count       Int       @default(0)
+  fullscreen_exit_count  Int       @default(0)
+  face_missing_count     Int       @default(0)
+  multiple_face_count    Int       @default(0)
+  suspicious_event_count Int       @default(0)
+  risk_level             RiskLevel
+  generated_at           DateTime  @default(now()) @db.Timestamp(6)
+
+  attempt AssessmentAttempt @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade)
+
+  @@map("assessment_integrity_reports")
+}
+
+model LearningProgress {
+  progress_id        Int            @id @default(autoincrement())
+  student_id         Int
+  course_id          Int
+  topic_id           Int
+  resource_id        Int
+  status             ProgressStatus @default(IN_PROGRESS)
+  progress_percent   Int            @default(0)
+  time_spent_seconds Int            @default(0)
+  started_at         DateTime       @default(now()) @db.Timestamp(6)
+  completed_at       DateTime?      @db.Timestamp(6)
+  last_accessed_at   DateTime       @default(now()) @db.Timestamp(6)
+  created_at         DateTime       @default(now()) @db.Timestamp(6)
+  updated_at         DateTime       @updatedAt @db.Timestamp(6)
+
+  student  User     @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
+  course   Course   @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  topic    Topic    @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+  resource Resource @relation(fields: [resource_id], references: [resource_id], onDelete: Cascade)
+
+  @@unique([student_id, resource_id])
+  @@map("learning_progress")
+}
+
+model LearningActivity {
+  activity_id   Int          @id @default(autoincrement())
+  student_id    Int
+  course_id     Int
+  topic_id      Int
+  resource_id   Int
+  activity_type ActivityType
+  metadata      Json?
+  created_at    DateTime     @default(now()) @db.Timestamp(6)
+
+  student  User     @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
+  course   Course   @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  topic    Topic    @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+  resource Resource @relation(fields: [resource_id], references: [resource_id], onDelete: Cascade)
+
+  @@map("learning_activities")
 }

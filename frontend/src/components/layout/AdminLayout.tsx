@@ -63,8 +63,8 @@ export default function AdminLayout({ children, user }: AdminLayoutProps) {
             <span className="font-label-mono text-label-mono">Manage Courses</span>
           </Link>
           <Link to="/profile" className={`flex items-center space-x-3 pl-4 py-2 transition-colors duration-200 ${location.pathname === '/profile' ? 'text-accent-neon font-bold border-l-4 border-accent-neon' : 'text-white/70 hover:text-white'}`}>
-            <span className="material-symbols-outlined">settings</span>
-            <span className="font-label-mono text-label-mono">Settings</span>
+            <span className="material-symbols-outlined">person</span>
+            <span className="font-label-mono text-label-mono">Profile</span>
           </Link>
           {user.role === 'SystemAdmin' && (
             <Link to="#" className="flex items-center space-x-3 text-white/70 hover:text-white pl-4 py-2 transition-colors duration-200">

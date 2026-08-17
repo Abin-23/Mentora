@@ -38,6 +38,26 @@ let ResourcesController = class ResourcesController {
     reorder(topicId, reorderResourcesDto) {
         return this.resourcesService.reorder(topicId, reorderResourcesDto);
     }
+    async proxyResource(url, res) {
+        if (!url) {
+            return res.status(400).send('URL is required');
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                return res.status(response.status).send(`Failed to fetch from S3: ${response.statusText}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (contentType) {
+                res.setHeader('Content-Type', contentType);
+            }
+            const buffer = await response.arrayBuffer();
+            res.send(Buffer.from(buffer));
+        }
+        catch (error) {
+            return res.status(500).send('Proxy error');
+        }
+    }
     findOne(id) {
         return this.resourcesService.findOne(id);
     }
@@ -80,6 +100,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, reorder_resources_dto_1.ReorderResourcesDto]),
     __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "reorder", null);
+__decorate([
+    (0, common_1.Get)('resources/proxy'),
+    __param(0, (0, common_1.Query)('url')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ResourcesController.prototype, "proxyResource", null);
 __decorate([
     (0, common_1.Get)('resources/:id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

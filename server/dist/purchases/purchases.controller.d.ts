@@ -12,4 +12,8 @@ export declare class PurchasesController {
         success: boolean;
         message: string;
     }>;
+    mockPayment(req: any, courseId: number): Promise<{
+        success: boolean;
+        message: string;
+    }>;
 }

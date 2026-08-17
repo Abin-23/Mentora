@@ -63,9 +63,9 @@ export default function Login() {
       localStorage.setItem('access_token', token);
       const payload = decodeJwt(token);
       if (payload?.role === 'SystemAdmin' || payload?.role === 'CourseAdmin') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } else if (authError) {
       setError(decodeURIComponent(authError));
@@ -94,9 +94,9 @@ export default function Login() {
       
       const payload = decodeJwt(data.access_token);
       if (payload?.role === 'SystemAdmin' || payload?.role === 'CourseAdmin') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {

@@ -10,6 +10,8 @@ export declare class ResourcesService {
     constructor(prisma: PrismaService);
     private getS3Url;
     private extractKeyFromUrl;
+    getPresignedUrl(key: string): Promise<string>;
+    signResources(resources: any[]): Promise<any[]>;
     private deleteFromS3;
     create(topicId: number, userId: number, createResourceDto: CreateResourceDto, resourceFile?: Express.Multer.File, thumbnailFile?: Express.Multer.File): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
@@ -17,15 +19,15 @@ export declare class ResourcesService {
         description: string | null;
         updated_at: Date;
         thumbnail_key: string | null;
-        sequence_number: number;
         topic_id: number;
-        resource_id: number;
+        sequence_number: number;
         resource_title: string;
         resource_type: import(".prisma/client").$Enums.ResourceType;
+        is_preview: boolean;
+        duration_seconds: number | null;
+        resource_id: number;
         resource_key: string;
         file_size: bigint | null;
-        duration_seconds: number | null;
-        is_preview: boolean;
         uploaded_by: number;
     }>;
     findAllByTopic(topicId: number): Promise<{
@@ -34,15 +36,15 @@ export declare class ResourcesService {
         description: string | null;
         updated_at: Date;
         thumbnail_key: string | null;
-        sequence_number: number;
         topic_id: number;
-        resource_id: number;
+        sequence_number: number;
         resource_title: string;
         resource_type: import(".prisma/client").$Enums.ResourceType;
+        is_preview: boolean;
+        duration_seconds: number | null;
+        resource_id: number;
         resource_key: string;
         file_size: bigint | null;
-        duration_seconds: number | null;
-        is_preview: boolean;
         uploaded_by: number;
     }[]>;
     findOne(id: number): Promise<{
@@ -51,15 +53,15 @@ export declare class ResourcesService {
         description: string | null;
         updated_at: Date;
         thumbnail_key: string | null;
-        sequence_number: number;
         topic_id: number;
-        resource_id: number;
+        sequence_number: number;
         resource_title: string;
         resource_type: import(".prisma/client").$Enums.ResourceType;
+        is_preview: boolean;
+        duration_seconds: number | null;
+        resource_id: number;
         resource_key: string;
         file_size: bigint | null;
-        duration_seconds: number | null;
-        is_preview: boolean;
         uploaded_by: number;
     }>;
     update(id: number, updateResourceDto: UpdateResourceDto): Promise<{
@@ -68,15 +70,15 @@ export declare class ResourcesService {
         description: string | null;
         updated_at: Date;
         thumbnail_key: string | null;
-        sequence_number: number;
         topic_id: number;
-        resource_id: number;
+        sequence_number: number;
         resource_title: string;
         resource_type: import(".prisma/client").$Enums.ResourceType;
+        is_preview: boolean;
+        duration_seconds: number | null;
+        resource_id: number;
         resource_key: string;
         file_size: bigint | null;
-        duration_seconds: number | null;
-        is_preview: boolean;
         uploaded_by: number;
     }>;
     remove(id: number): Promise<{
@@ -85,15 +87,15 @@ export declare class ResourcesService {
         description: string | null;
         updated_at: Date;
         thumbnail_key: string | null;
-        sequence_number: number;
         topic_id: number;
-        resource_id: number;
+        sequence_number: number;
         resource_title: string;
         resource_type: import(".prisma/client").$Enums.ResourceType;
+        is_preview: boolean;
+        duration_seconds: number | null;
+        resource_id: number;
         resource_key: string;
         file_size: bigint | null;
-        duration_seconds: number | null;
-        is_preview: boolean;
         uploaded_by: number;
     }>;
     reorder(topicId: number, reorderDto: ReorderResourcesDto): Promise<{

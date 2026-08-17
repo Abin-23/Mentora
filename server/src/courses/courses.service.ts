@@ -6,10 +6,19 @@ import {
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiGenerationService } from '../assessments/ai-generation.service';
+import { Neo4jService } from '../neo4j/neo4j.service';
+import { ResourcesService } from '../resources/resources.service';
+import neo4j from 'neo4j-driver';
 
 @Injectable()
 export class CoursesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private aiGeneration: AiGenerationService,
+    private neo4jService: Neo4jService,
+    private resourcesService: ResourcesService,
+  ) {}
 
   private generateSlug(title: string): string {
     return title
@@ -93,16 +102,10 @@ export class CoursesService {
     }));
   }
 
-  async findOne(idOrSlug: number | string, userId?: number) {
-    let whereClause: any;
-    if (typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug))) {
-      whereClause = { course_id: Number(idOrSlug) };
-    } else {
-      whereClause = { slug: idOrSlug };
-    }
-
+  async findOne(idOrSlug: string | number, userId?: number) {
+    const isId = typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug));
     const course = await this.prisma.course.findUnique({
-      where: whereClause,
+      where: isId ? { course_id: Number(idOrSlug) } : { slug: String(idOrSlug) },
       include: {
         category: { select: { category_name: true } },
         course_admin: {
@@ -126,16 +129,10 @@ export class CoursesService {
     return { ...course, is_enrolled };
   }
 
-  async getCoursePlayerContent(idOrSlug: number | string, userId: number) {
-    let whereClause: any;
-    if (typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug))) {
-      whereClause = { course_id: Number(idOrSlug) };
-    } else {
-      whereClause = { slug: idOrSlug };
-    }
-
+  async getCoursePlayerContent(idOrSlug: string | number, userId: number) {
+    const isId = typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug));
     const course = await this.prisma.course.findUnique({
-      where: whereClause,
+      where: isId ? { course_id: Number(idOrSlug) } : { slug: String(idOrSlug) },
       include: {
         topics: {
           orderBy: { sequence_number: 'asc' },
@@ -163,7 +160,36 @@ export class CoursesService {
       );
     }
 
-    return course;
+    // Check for INITIAL assessment
+    const initialAssessment = await this.prisma.assessment.findFirst({
+      where: { course_id: course.course_id, assessment_type: 'INITIAL', status: 'PUBLISHED' }
+    });
+
+    let initial_assessment_pending = false;
+    let initial_assessment_data = null;
+    
+    if (initialAssessment) {
+      initial_assessment_data = initialAssessment;
+      const attempt = await this.prisma.assessmentAttempt.findFirst({
+        where: { assessment_id: initialAssessment.assessment_id, student_id: userId, status: 'SUBMITTED' }
+      });
+      if (!attempt) {
+        initial_assessment_pending = true;
+      }
+    }
+
+    if (initial_assessment_pending) {
+       return { ...course, topics: [], initial_assessment_pending, initial_assessment: initial_assessment_data };
+    }
+
+    // Sign resources
+    for (const topic of course.topics) {
+      if (topic.resources && topic.resources.length > 0) {
+        topic.resources = await this.resourcesService.signResources(topic.resources) as any;
+      }
+    }
+
+    return { ...course, initial_assessment_pending: false };
   }
 
   async update(id: number, updateCourseDto: UpdateCourseDto, user: { user_id: number; role: string }) {
@@ -189,13 +215,101 @@ export class CoursesService {
       }
     }
 
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { course_id: id },
       data: {
         ...updateCourseDto,
         slug,
       },
     });
+
+    if (updateCourseDto.status === 'Published' && course.status !== 'Published') {
+      // Fire and forget AI generation
+      this.aiGeneration.generateInitialAssessment(updated.course_id).catch(e => {
+        console.error('Failed to generate initial assessment async', e);
+      });
+      // Fire and forget Knowledge Graph sync
+      this.syncCourseToNeo4j(updated.course_id).catch(e => {
+        console.error('Failed to sync course to Neo4j async', e);
+      });
+    }
+
+    return updated;
+  }
+
+  private async syncCourseToNeo4j(courseId: number) {
+    if (!this.neo4jService.isDatabaseConnected()) {
+      console.warn('Neo4j is not connected. Skipping course sync.');
+      return;
+    }
+
+    const course = await this.prisma.course.findUnique({
+      where: { course_id: courseId },
+      include: {
+        topics: {
+          orderBy: { sequence_number: 'asc' },
+        },
+      },
+    });
+
+    if (!course) return;
+
+    try {
+      // 1. Sync the Course node
+      await this.neo4jService.write(
+        `
+        MERGE (c:Course {courseId: toInteger($courseId)})
+        SET c.title = $title
+        `,
+        { courseId: neo4j.int(course.course_id), title: course.title }
+      );
+
+      // 2. Sync Topics and HAS_TOPIC relationships
+      for (const topic of course.topics) {
+        await this.neo4jService.write(
+          `
+          MERGE (t:Topic {topicId: toInteger($topicId)})
+          SET t.courseId = toInteger($courseId), 
+              t.title = $title, 
+              t.difficulty = $difficulty, 
+              t.sequenceNumber = toInteger($sequenceNumber)
+          
+          WITH t
+          MATCH (c:Course {courseId: toInteger($courseId)})
+          MERGE (c)-[:HAS_TOPIC]->(t)
+          `,
+          {
+            topicId: neo4j.int(topic.topic_id),
+            courseId: neo4j.int(course.course_id),
+            title: topic.topic_title,
+            difficulty: topic.difficulty_level,
+            sequenceNumber: neo4j.int(topic.sequence_number),
+          }
+        );
+      }
+
+      // 3. Sync PREREQUISITE_FOR relationships (Sequential ordering)
+      for (let i = 0; i < course.topics.length - 1; i++) {
+        const currentTopic = course.topics[i];
+        const nextTopic = course.topics[i + 1];
+
+        await this.neo4jService.write(
+          `
+          MATCH (t1:Topic {topicId: toInteger($topic1Id)})
+          MATCH (t2:Topic {topicId: toInteger($topic2Id)})
+          MERGE (t1)-[:PREREQUISITE_FOR]->(t2)
+          `,
+          {
+            topic1Id: neo4j.int(currentTopic.topic_id),
+            topic2Id: neo4j.int(nextTopic.topic_id),
+          }
+        );
+      }
+
+      console.log(`Successfully synced Course #${courseId} to Neo4j`);
+    } catch (error) {
+      console.error('Error syncing course to Neo4j:', error);
+    }
   }
 
   async remove(id: number, user: { user_id: number; role: string }) {

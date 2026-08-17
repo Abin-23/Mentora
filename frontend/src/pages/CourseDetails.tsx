@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthUser } from '../hooks/useAuthUser';
 import StudentLayout from '../components/layout/StudentLayout';
+import PaymentModal from '../components/payment/PaymentModal';
 
 interface Topic {
   topic_id: number;
@@ -34,9 +35,11 @@ export default function CourseDetails() {
   const [course, setCourse] = useState<CourseDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [error, setError] = useState('');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('access_token');
 
   useEffect(() => {
@@ -67,14 +70,30 @@ export default function CourseDetails() {
     });
   };
 
-  const handleEnrollment = async () => {
-    if (!course) return;
-    setEnrolling(true);
-    setError('');
-    const price = Number(course.price);
+  const handleEnrollmentClick = async () => {
+    if (!course || !user) return;
+    
+    if (Number(course.price) === 0) {
+      // Proceed directly for free courses
+      processPayment('free');
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const processPayment = async (method: string) => {
+    if (!course || !user) return;
+    
+    const token = localStorage.getItem('access_token');
+    
+    if (Number(course.price) === 0) {
+      setEnrolling(true);
+    } else {
+      setProcessingPayment(true);
+    }
 
     try {
-      if (price === 0) {
+      if (Number(course.price) === 0) {
         // Free enrollment
         const res = await fetch(`${API_URL}/enrollments/free`, {
           method: 'POST',
@@ -88,6 +107,28 @@ export default function CourseDetails() {
         if (!res.ok) throw new Error(data.message || 'Failed to enroll');
         alert('Enrolled successfully!');
         navigate('/my-learning');
+      } else if (method === 'card' || method === 'upi' || method === 'wallet') {
+        // Bypass Razorpay for international transactions (mock payment)
+        // Note: For demo purposes, we treat all these as mock payment
+        // to bypass the Razorpay UI restriction.
+        const res = await fetch(`${API_URL}/purchases/mock-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ courseId: course.course_id })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Payment failed');
+        
+        // Add a fake delay to make the UX feel realistic
+        setTimeout(() => {
+          alert('Payment successful! You are now enrolled.');
+          setShowPaymentModal(false);
+          setProcessingPayment(false);
+          navigate('/my-learning');
+        }, 1500);
       } else {
         // Paid enrollment via Razorpay
         const resLoaded = await loadRazorpay();
@@ -99,7 +140,7 @@ export default function CourseDetails() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify({ courseId: course.course_id })
+          body: JSON.stringify({ courseId: course.course_id, paymentMethod: method })
         });
         const orderData = await orderRes.json();
         if (!orderRes.ok) throw new Error(orderData.message || 'Failed to create order');
@@ -128,9 +169,16 @@ export default function CourseDetails() {
               const verifyData = await verifyRes.json();
               if (!verifyRes.ok) throw new Error(verifyData.message || 'Payment verification failed');
               alert('Payment successful! You are now enrolled.');
+              setShowPaymentModal(false);
               navigate('/my-learning');
             } catch (err: any) {
               alert(err.message);
+              setProcessingPayment(false);
+            }
+          },
+          modal: {
+            ondismiss: function() {
+              setProcessingPayment(false);
             }
           },
           prefill: {
@@ -147,7 +195,7 @@ export default function CourseDetails() {
       }
     } catch (err: any) {
       setError(err.message);
-    } finally {
+      setProcessingPayment(false);
       setEnrolling(false);
     }
   };
@@ -244,7 +292,7 @@ export default function CourseDetails() {
                   ) : (
                     <>
                       <button 
-                        onClick={handleEnrollment} 
+                        onClick={handleEnrollmentClick} 
                         disabled={enrolling}
                         className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg shadow-md hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:hover:translate-y-0 flex justify-center items-center gap-2"
                       >
@@ -263,6 +311,18 @@ export default function CourseDetails() {
           </div>
         </div>
       ) : null}
+      
+      {showPaymentModal && course && (
+        <PaymentModal
+          courseTitle={course.title}
+          price={Number(course.price)}
+          thumbnailKey={course.thumbnail_key || undefined}
+          difficultyLevel={course.difficulty_level || 'Beginner'}
+          isProcessing={processingPayment}
+          onClose={() => setShowPaymentModal(false)}
+          onProceed={(method) => processPayment(method)}
+        />
+      )}
     </StudentLayout>
   );
 }

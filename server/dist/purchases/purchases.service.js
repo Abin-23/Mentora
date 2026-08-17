@@ -142,6 +142,40 @@ let PurchasesService = class PurchasesService {
             message: 'Payment verified successfully and enrolled',
         };
     }
+    async mockPayment(userId, courseId) {
+        const course = await this.prisma.course.findUnique({
+            where: { course_id: courseId },
+        });
+        if (!course) {
+            throw new common_1.BadRequestException('Course not found');
+        }
+        const price = Number(course.price);
+        const purchase = await this.prisma.purchase.create({
+            data: {
+                user_id: userId,
+                course_id: courseId,
+                amount: price,
+                currency: 'INR',
+                payment_gateway: 'Mentora_Direct',
+                gateway_order_id: `mock_order_${Date.now()}`,
+                gateway_payment_id: `mock_pay_${Date.now()}`,
+                status: 'PAID',
+                purchased_at: new Date(),
+            },
+        });
+        await this.prisma.enrollment.create({
+            data: {
+                user_id: userId,
+                course_id: courseId,
+                purchase_id: purchase.purchase_id,
+                enrollment_status: 'ACTIVE',
+            },
+        });
+        return {
+            success: true,
+            message: 'Mock payment successful and enrolled',
+        };
+    }
 };
 exports.PurchasesService = PurchasesService;
 exports.PurchasesService = PurchasesService = __decorate([

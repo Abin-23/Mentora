@@ -11,6 +11,10 @@ import { TopicsModule } from './topics/topics.module';
 import { ResourcesModule } from './resources/resources.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { AssessmentsModule } from './assessments/assessments.module';
+import { Neo4jModule } from './neo4j/neo4j.module';
+import { AdaptiveLearningModule } from './adaptive-learning/adaptive-learning.module';
+import { LearningProgressModule } from './learning-progress/learning-progress.module';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { EnrollmentsModule } from './enrollments/enrollments.module';
     ResourcesModule,
     PurchasesModule,
     EnrollmentsModule,
+    AssessmentsModule,
+    Neo4jModule,
+    AdaptiveLearningModule,
+    LearningProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],

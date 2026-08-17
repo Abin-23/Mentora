@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsNumber } from 'class-validator';
-import { DifficultyLevel } from '@prisma/client';
+import { DifficultyLevel, CourseStatus } from '@prisma/client';
 
 export class CreateTopicDto {
   @IsString()
@@ -18,4 +18,8 @@ export class CreateTopicDto {
   @IsNumber()
   @IsOptional()
   estimated_duration?: number;
+
+  @IsEnum(CourseStatus)
+  @IsOptional()
+  status?: CourseStatus;
 }

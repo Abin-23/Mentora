@@ -96,7 +96,7 @@ export default function Register() {
         throw new Error(errorMessage);
       }
 
-      navigate('/login');
+      navigate('/login', { replace: true });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);

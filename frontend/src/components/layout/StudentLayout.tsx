@@ -59,8 +59,8 @@ export default function StudentLayout({ children, user }: StudentLayoutProps) {
             <span className="font-label-mono text-label-mono">Progress</span>
           </Link>
           <Link to="/profile" className={`flex items-center space-x-3 pl-4 py-2 transition-colors duration-200 ${location.pathname === '/profile' ? 'text-primary font-bold border-l-4 border-primary' : 'text-on-surface-variant hover:text-primary'}`}>
-            <span className={`material-symbols-outlined ${location.pathname === '/profile' ? 'text-primary' : ''}`}>settings</span>
-            <span className="font-label-mono text-label-mono">Settings</span>
+            <span className={`material-symbols-outlined ${location.pathname === '/profile' ? 'text-primary' : ''}`}>person</span>
+            <span className="font-label-mono text-label-mono">Profile</span>
           </Link>
         </nav>
         

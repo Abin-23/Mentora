@@ -13,4 +13,8 @@ export declare class PurchasesService {
         success: boolean;
         message: string;
     }>;
+    mockPayment(userId: number, courseId: number): Promise<{
+        success: boolean;
+        message: string;
+    }>;
 }

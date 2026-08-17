@@ -1,21 +1,70 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StudentLayout from '../components/layout/StudentLayout';
 import BentoCard from '../components/ui/BentoCard';
-import CourseCard from '../components/ui/CourseCard';
-
 import { useAuthUser } from '../hooks/useAuthUser';
+
 export default function Dashboard() {
   const user = useAuthUser();
   const navigate = useNavigate();
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [assessments, setAssessments] = useState<any[]>([]);
+  
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const token = localStorage.getItem('access_token');
 
   useEffect(() => {
     if (user && (user.role === 'SystemAdmin' || user.role === 'CourseAdmin')) {
       navigate('/admin/dashboard', { replace: true });
+      return;
     }
-  }, [user, navigate]);
+
+    const fetchData = async () => {
+      try {
+        if (!token) return;
+        // Fetch enrollments
+        const enrRes = await fetch(`${API_URL}/enrollments/my-learning`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (enrRes.ok) {
+          const enrData = await enrRes.json();
+          setEnrollments(enrData);
+          
+          // Fetch assessments for enrolled courses
+          let allAssessments: any[] = [];
+          for (const enr of enrData) {
+            const asmRes = await fetch(`${API_URL}/assessments/course/${enr.course.course_id}`, {
+               headers: { Authorization: `Bearer ${token}` }
+            });
+            if (asmRes.ok) {
+               const asmData = await asmRes.json();
+               // Map with course info
+               const mapped = asmData.map((a: any) => ({ ...a, course: enr.course }));
+               allAssessments = [...allAssessments, ...mapped];
+            }
+          }
+          setAssessments(allAssessments);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    if (user) fetchData();
+  }, [user, navigate, API_URL, token]);
 
   if (!user || user.role === 'SystemAdmin' || user.role === 'CourseAdmin') return null;
+
+  // Calculate dynamic data
+  const totalCourses = enrollments.length;
+  const completedCourses = enrollments.filter(e => e.enrollment_status === 'COMPLETED').length;
+  const completionPercentage = totalCourses === 0 ? 0 : Math.round((completedCourses / totalCourses) * 100);
+  const strokeDashoffset = 251.2 * (1 - completionPercentage / 100);
+  
+  const activeCourses = enrollments.filter(e => e.enrollment_status === 'ACTIVE').length;
+  const latestCourseTitle = enrollments[0]?.course?.title || 'your courses';
+  const latestCourseCategory = enrollments[0]?.course?.category?.category_name || 'various topics';
+  const pendingAssessments = assessments.filter(a => !a.attempts?.some((att: any) => att.status === 'SUBMITTED'));
 
   return (
     <StudentLayout user={user}>
@@ -26,16 +75,16 @@ export default function Dashboard() {
             Welcome back.
           </h1>
           <p className="font-body-md text-text-secondary">
-            Your personalized learning ecosystem is ready. You have <strong className="text-primary">2 tasks</strong> pending.
+            Your personalized learning ecosystem is ready. You have <strong className="text-primary">{pendingAssessments.length} pending assessments</strong>.
           </p>
         </div>
-        <button className="bg-primary text-on-primary font-label-mono text-label-mono px-6 py-3 rounded-full hover:scale-95 transition-transform flex items-center gap-2 cursor-pointer shadow-lg">
-          Resume Course <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+        <button onClick={() => navigate('/my-learning')} className="bg-primary text-on-primary font-label-mono text-label-mono px-6 py-3 rounded-full hover:scale-95 transition-transform flex items-center gap-2 cursor-pointer shadow-lg">
+          Resume Learning <span className="material-symbols-outlined text-[18px]">play_arrow</span>
         </button>
       </section>
 
       {/* Bento Grid Dashboard */}
-      <section className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[240px]">
+      <section className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[240px] mb-8">
         
         {/* AI Mentor Insights - Large Lavender Card */}
         <BentoCard colSpanClass="md:col-span-8" bgColorClass="bg-card-lavender" className="relative overflow-hidden group">
@@ -47,9 +96,15 @@ export default function Dashboard() {
               <span className="font-label-mono text-label-mono uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full border border-black/5">AI Insight</span>
             </div>
           </div>
-          <div className="z-10 max-w-lg mt-4">
-            <h3 className="font-headline-md text-2xl mb-2">You're mastering Data Structures!</h3>
-            <p className="font-body-md opacity-80 leading-relaxed">Based on your recent quizzes, you show a 94% retention rate in binary trees. I recommend moving on to Graph Theory next.</p>
+          <div className="z-10 max-w-lg mt-auto">
+            <h3 className="font-headline-md text-2xl mb-2 line-clamp-1 truncate">
+              {enrollments.length > 0 ? `You're mastering ${latestCourseTitle}!` : "Start your learning journey!"}
+            </h3>
+            <p className="font-body-md opacity-80 leading-relaxed">
+              {enrollments.length > 0 
+                ? `Based on your recent progress in ${latestCourseCategory}, you are showing great retention. Keep it up and tackle your pending assessments!`
+                : "Explore our catalog and enroll in courses to see personalized AI insights here."}
+            </p>
           </div>
           
           {/* Decorative background shape */}
@@ -60,15 +115,15 @@ export default function Dashboard() {
         <BentoCard colSpanClass="md:col-span-4" bgColorClass="bg-card-mint">
           <div className="flex justify-between items-center">
             <span className="font-label-mono text-label-mono uppercase tracking-widest text-primary/60">Activity</span>
-            <span className="material-symbols-outlined text-primary/40">local_fire_department</span>
+            <span className="material-symbols-outlined text-primary/40">school</span>
           </div>
-          <div className="text-center">
-            <div className="font-display-xl text-7xl text-primary mb-1 tracking-tighter">12</div>
-            <p className="font-label-mono text-label-mono text-primary/70">DAY STREAK</p>
+          <div className="text-center mt-auto">
+            <div className="font-display-xl text-7xl text-primary mb-1 tracking-tighter">{activeCourses}</div>
+            <p className="font-label-mono text-label-mono text-primary/70">ACTIVE COURSES</p>
           </div>
           <div className="flex gap-1 justify-center mt-4">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-              <div key={day} className={`w-8 h-2 rounded-full ${day <= 5 ? 'bg-primary' : 'bg-primary/10'}`}></div>
+            {[...Array(Math.max(5, totalCourses))].map((_, i) => (
+              <div key={i} className={`w-8 h-2 rounded-full ${i < activeCourses ? 'bg-primary' : 'bg-primary/10'}`}></div>
             ))}
           </div>
         </BentoCard>
@@ -85,16 +140,63 @@ export default function Dashboard() {
             <div className="relative w-32 h-32 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="12" />
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#000" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="80" strokeLinecap="round" className="animate-[spin_2s_ease-out_forwards]" />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#000" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
               </svg>
-              <span className="absolute font-display-xl text-3xl">68%</span>
+              <span className="absolute font-display-xl text-3xl">{completionPercentage}%</span>
             </div>
           </div>
         </BentoCard>
+      </section>
 
-        {/* Active Course - White Card */}
-        <CourseCard />
-        
+      {/* Pending Assessments Section (Outside the 240px restricted grid) */}
+      <section>
+        <BentoCard colSpanClass="" bgColorClass="bg-surface-container-lowest" className="w-full">
+           <div className="flex justify-between items-center mb-6">
+              <h3 className="font-headline-md text-2xl flex items-center gap-2">
+                 <span className="material-symbols-outlined text-primary">pending_actions</span> Pending Assessments
+              </h3>
+           </div>
+           
+           {pendingAssessments.length === 0 ? (
+              <div className="text-center py-16 bg-white/50 border border-dashed border-outline-variant/50 rounded-3xl flex flex-col items-center justify-center gap-3">
+                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                    <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
+                 </div>
+                 <h4 className="font-bold text-lg">You're all caught up!</h4>
+                 <p className="text-text-secondary text-sm">No assessments pending. Great job staying on top of your learning.</p>
+              </div>
+           ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {pendingAssessments.map(a => (
+                    <div key={a.assessment_id} className="relative group overflow-hidden bg-white border border-outline-variant/30 p-6 rounded-[1.5rem] flex flex-col hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full">
+                       {/* Decorative Top Accent */}
+                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary/40 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                       
+                       <div className="flex-1 z-10 relative">
+                          <div className="flex justify-between items-start mb-5">
+                             <span className="text-[10px] uppercase font-bold tracking-widest bg-primary/10 text-primary px-3 py-1 rounded-full">{a.assessment_type}</span>
+                             <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-md text-text-secondary">
+                                <span className="material-symbols-outlined text-[14px]">help</span>
+                                <span className="text-[11px] font-bold uppercase tracking-wider">{a.total_questions} Qs</span>
+                             </div>
+                          </div>
+                          
+                          <h4 className="font-headline-sm text-xl mb-2 text-text-primary group-hover:text-primary transition-colors leading-tight">{a.title}</h4>
+                          <div className="flex items-center gap-2 text-sm text-text-secondary mb-4">
+                             <span className="material-symbols-outlined text-[16px] text-primary/60">menu_book</span>
+                             <span className="line-clamp-1">{a.course?.title}</span>
+                          </div>
+                       </div>
+                       
+                       <button onClick={() => navigate(`/assessments/${a.assessment_id}/take`)} className="mt-auto w-full bg-surface-container-low group-hover:bg-primary text-primary group-hover:text-white font-bold text-sm py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-sm">
+                          Take Assessment
+                          <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                       </button>
+                    </div>
+                 ))}
+              </div>
+           )}
+        </BentoCard>
       </section>
     </StudentLayout>
   );

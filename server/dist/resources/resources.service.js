@@ -13,6 +13,7 @@ exports.ResourcesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_s3_1 = require("@aws-sdk/client-s3");
+const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
 let ResourcesService = class ResourcesService {
     prisma;
     s3Client;
@@ -37,6 +38,31 @@ let ResourcesService = class ResourcesService {
             return url.replace(s3Domain, '');
         }
         return null;
+    }
+    async getPresignedUrl(key) {
+        try {
+            const command = new client_s3_1.GetObjectCommand({
+                Bucket: this.bucketName,
+                Key: key,
+            });
+            return await (0, s3_request_presigner_1.getSignedUrl)(this.s3Client, command, { expiresIn: 43200 });
+        }
+        catch (err) {
+            console.error(`Failed to generate presigned URL for ${key}`, err);
+            return this.getS3Url(key);
+        }
+    }
+    async signResources(resources) {
+        return Promise.all(resources.map(async (res) => {
+            if (res.resource_key) {
+                const key = this.extractKeyFromUrl(res.resource_key);
+                if (key) {
+                    const signedUrl = await this.getPresignedUrl(key);
+                    return { ...res, resource_key: signedUrl };
+                }
+            }
+            return res;
+        }));
     }
     async deleteFromS3(url) {
         const key = this.extractKeyFromUrl(url);

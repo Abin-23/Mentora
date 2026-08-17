@@ -18,6 +18,7 @@ class CreateTopicDto {
     learning_objectives;
     difficulty_level;
     estimated_duration;
+    status;
 }
 exports.CreateTopicDto = CreateTopicDto;
 __decorate([
@@ -42,4 +43,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateTopicDto.prototype, "estimated_duration", void 0);
+__decorate([
+    (0, class_validator_1.IsEnum)(client_1.CourseStatus),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTopicDto.prototype, "status", void 0);
 //# sourceMappingURL=create-topic.dto.js.map

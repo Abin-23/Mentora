@@ -27,6 +27,9 @@ let PurchasesController = class PurchasesController {
     verifyPayment(req, razorpayOrderId, razorpayPaymentId, razorpaySignature) {
         return this.purchasesService.verifyPayment(req.user.user_id, razorpayOrderId, razorpayPaymentId, razorpaySignature);
     }
+    mockPayment(req, courseId) {
+        return this.purchasesService.mockPayment(req.user.user_id, courseId);
+    }
 };
 exports.PurchasesController = PurchasesController;
 __decorate([
@@ -49,6 +52,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], PurchasesController.prototype, "verifyPayment", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('mock-payment'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)('courseId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", void 0)
+], PurchasesController.prototype, "mockPayment", null);
 exports.PurchasesController = PurchasesController = __decorate([
     (0, common_1.Controller)('purchases'),
     __metadata("design:paramtypes", [purchases_service_1.PurchasesService])

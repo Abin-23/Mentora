@@ -20,6 +20,10 @@ const topics_module_1 = require("./topics/topics.module");
 const resources_module_1 = require("./resources/resources.module");
 const purchases_module_1 = require("./purchases/purchases.module");
 const enrollments_module_1 = require("./enrollments/enrollments.module");
+const assessments_module_1 = require("./assessments/assessments.module");
+const neo4j_module_1 = require("./neo4j/neo4j.module");
+const adaptive_learning_module_1 = require("./adaptive-learning/adaptive-learning.module");
+const learning_progress_module_1 = require("./learning-progress/learning-progress.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -36,6 +40,10 @@ exports.AppModule = AppModule = __decorate([
             resources_module_1.ResourcesModule,
             purchases_module_1.PurchasesModule,
             enrollments_module_1.EnrollmentsModule,
+            assessments_module_1.AssessmentsModule,
+            neo4j_module_1.Neo4jModule,
+            adaptive_learning_module_1.AdaptiveLearningModule,
+            learning_progress_module_1.LearningProgressModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

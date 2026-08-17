@@ -8,14 +8,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoursesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const ai_generation_service_1 = require("../assessments/ai-generation.service");
+const neo4j_service_1 = require("../neo4j/neo4j.service");
+const resources_service_1 = require("../resources/resources.service");
+const neo4j_driver_1 = __importDefault(require("neo4j-driver"));
 let CoursesService = class CoursesService {
     prisma;
-    constructor(prisma) {
+    aiGeneration;
+    neo4jService;
+    resourcesService;
+    constructor(prisma, aiGeneration, neo4jService, resourcesService) {
         this.prisma = prisma;
+        this.aiGeneration = aiGeneration;
+        this.neo4jService = neo4jService;
+        this.resourcesService = resourcesService;
     }
     generateSlug(title) {
         return title
@@ -90,15 +103,9 @@ let CoursesService = class CoursesService {
         }));
     }
     async findOne(idOrSlug, userId) {
-        let whereClause;
-        if (typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug))) {
-            whereClause = { course_id: Number(idOrSlug) };
-        }
-        else {
-            whereClause = { slug: idOrSlug };
-        }
+        const isId = typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug));
         const course = await this.prisma.course.findUnique({
-            where: whereClause,
+            where: isId ? { course_id: Number(idOrSlug) } : { slug: String(idOrSlug) },
             include: {
                 category: { select: { category_name: true } },
                 course_admin: {
@@ -119,15 +126,9 @@ let CoursesService = class CoursesService {
         return { ...course, is_enrolled };
     }
     async getCoursePlayerContent(idOrSlug, userId) {
-        let whereClause;
-        if (typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug))) {
-            whereClause = { course_id: Number(idOrSlug) };
-        }
-        else {
-            whereClause = { slug: idOrSlug };
-        }
+        const isId = typeof idOrSlug === 'number' || !isNaN(Number(idOrSlug));
         const course = await this.prisma.course.findUnique({
-            where: whereClause,
+            where: isId ? { course_id: Number(idOrSlug) } : { slug: String(idOrSlug) },
             include: {
                 topics: {
                     orderBy: { sequence_number: 'asc' },
@@ -149,7 +150,29 @@ let CoursesService = class CoursesService {
         if (!enrollment) {
             throw new common_1.ForbiddenException('You must be enrolled to access course content');
         }
-        return course;
+        const initialAssessment = await this.prisma.assessment.findFirst({
+            where: { course_id: course.course_id, assessment_type: 'INITIAL', status: 'PUBLISHED' }
+        });
+        let initial_assessment_pending = false;
+        let initial_assessment_data = null;
+        if (initialAssessment) {
+            initial_assessment_data = initialAssessment;
+            const attempt = await this.prisma.assessmentAttempt.findFirst({
+                where: { assessment_id: initialAssessment.assessment_id, student_id: userId, status: 'SUBMITTED' }
+            });
+            if (!attempt) {
+                initial_assessment_pending = true;
+            }
+        }
+        if (initial_assessment_pending) {
+            return { ...course, topics: [], initial_assessment_pending, initial_assessment: initial_assessment_data };
+        }
+        for (const topic of course.topics) {
+            if (topic.resources && topic.resources.length > 0) {
+                topic.resources = await this.resourcesService.signResources(topic.resources);
+            }
+        }
+        return { ...course, initial_assessment_pending: false };
     }
     async update(id, updateCourseDto, user) {
         const course = await this.findOne(id);
@@ -168,13 +191,79 @@ let CoursesService = class CoursesService {
                 counter++;
             }
         }
-        return this.prisma.course.update({
+        const updated = await this.prisma.course.update({
             where: { course_id: id },
             data: {
                 ...updateCourseDto,
                 slug,
             },
         });
+        if (updateCourseDto.status === 'Published' && course.status !== 'Published') {
+            this.aiGeneration.generateInitialAssessment(updated.course_id).catch(e => {
+                console.error('Failed to generate initial assessment async', e);
+            });
+            this.syncCourseToNeo4j(updated.course_id).catch(e => {
+                console.error('Failed to sync course to Neo4j async', e);
+            });
+        }
+        return updated;
+    }
+    async syncCourseToNeo4j(courseId) {
+        if (!this.neo4jService.isDatabaseConnected()) {
+            console.warn('Neo4j is not connected. Skipping course sync.');
+            return;
+        }
+        const course = await this.prisma.course.findUnique({
+            where: { course_id: courseId },
+            include: {
+                topics: {
+                    orderBy: { sequence_number: 'asc' },
+                },
+            },
+        });
+        if (!course)
+            return;
+        try {
+            await this.neo4jService.write(`
+        MERGE (c:Course {courseId: toInteger($courseId)})
+        SET c.title = $title
+        `, { courseId: neo4j_driver_1.default.int(course.course_id), title: course.title });
+            for (const topic of course.topics) {
+                await this.neo4jService.write(`
+          MERGE (t:Topic {topicId: toInteger($topicId)})
+          SET t.courseId = toInteger($courseId), 
+              t.title = $title, 
+              t.difficulty = $difficulty, 
+              t.sequenceNumber = toInteger($sequenceNumber)
+          
+          WITH t
+          MATCH (c:Course {courseId: toInteger($courseId)})
+          MERGE (c)-[:HAS_TOPIC]->(t)
+          `, {
+                    topicId: neo4j_driver_1.default.int(topic.topic_id),
+                    courseId: neo4j_driver_1.default.int(course.course_id),
+                    title: topic.topic_title,
+                    difficulty: topic.difficulty_level,
+                    sequenceNumber: neo4j_driver_1.default.int(topic.sequence_number),
+                });
+            }
+            for (let i = 0; i < course.topics.length - 1; i++) {
+                const currentTopic = course.topics[i];
+                const nextTopic = course.topics[i + 1];
+                await this.neo4jService.write(`
+          MATCH (t1:Topic {topicId: toInteger($topic1Id)})
+          MATCH (t2:Topic {topicId: toInteger($topic2Id)})
+          MERGE (t1)-[:PREREQUISITE_FOR]->(t2)
+          `, {
+                    topic1Id: neo4j_driver_1.default.int(currentTopic.topic_id),
+                    topic2Id: neo4j_driver_1.default.int(nextTopic.topic_id),
+                });
+            }
+            console.log(`Successfully synced Course #${courseId} to Neo4j`);
+        }
+        catch (error) {
+            console.error('Error syncing course to Neo4j:', error);
+        }
     }
     async remove(id, user) {
         const course = await this.findOne(id);
@@ -190,6 +279,9 @@ let CoursesService = class CoursesService {
 exports.CoursesService = CoursesService;
 exports.CoursesService = CoursesService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        ai_generation_service_1.AiGenerationService,
+        neo4j_service_1.Neo4jService,
+        resources_service_1.ResourcesService])
 ], CoursesService);
 //# sourceMappingURL=courses.service.js.map

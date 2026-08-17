@@ -27,4 +27,10 @@ export class PurchasesController {
       razorpaySignature,
     );
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('mock-payment')
+  mockPayment(@Req() req: any, @Body('courseId') courseId: number) {
+    return this.purchasesService.mockPayment(req.user.user_id, courseId);
+  }
 }

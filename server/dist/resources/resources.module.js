@@ -19,6 +19,7 @@ exports.ResourcesModule = ResourcesModule = __decorate([
         imports: [prisma_module_1.PrismaModule],
         controllers: [resources_controller_1.ResourcesController],
         providers: [resources_service_1.ResourcesService],
+        exports: [resources_service_1.ResourcesService],
     })
 ], ResourcesModule);
 //# sourceMappingURL=resources.module.js.map

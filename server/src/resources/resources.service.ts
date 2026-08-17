@@ -11,7 +11,9 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class ResourcesService {
@@ -39,6 +41,35 @@ export class ResourcesService {
       return url.replace(s3Domain, '');
     }
     return null;
+  }
+
+  async getPresignedUrl(key: string): Promise<string> {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+      // URL valid for 12 hours
+      return await getSignedUrl(this.s3Client, command, { expiresIn: 43200 });
+    } catch (err) {
+      console.error(`Failed to generate presigned URL for ${key}`, err);
+      return this.getS3Url(key);
+    }
+  }
+
+  async signResources(resources: any[]) {
+    return Promise.all(
+      resources.map(async (res) => {
+        if (res.resource_key) {
+          const key = this.extractKeyFromUrl(res.resource_key);
+          if (key) {
+            const signedUrl = await this.getPresignedUrl(key);
+            return { ...res, resource_key: signedUrl };
+          }
+        }
+        return res;
+      })
+    );
   }
 
   private async deleteFromS3(url: string) {
