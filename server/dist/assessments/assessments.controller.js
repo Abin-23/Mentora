@@ -24,8 +24,8 @@ let AssessmentsController = class AssessmentsController {
         this.assessmentsService = assessmentsService;
         this.aiGenerationService = aiGenerationService;
     }
-    generateTopicAssessment(courseId, topicId) {
-        return this.aiGenerationService.generateTopicAssessment(courseId, topicId);
+    generateTopicAssessment(courseId, topicId, req) {
+        return this.aiGenerationService.generateTopicAssessment(courseId, topicId, req.user.user_id);
     }
     getByCourse(courseId, req) {
         return this.assessmentsService.getAssessmentsByCourse(courseId, req.user);
@@ -54,8 +54,9 @@ __decorate([
     (0, common_1.Post)('course/:courseId/topic/:topicId/generate'),
     __param(0, (0, common_1.Param)('courseId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Param)('topicId', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [Number, Number, Object]),
     __metadata("design:returntype", void 0)
 ], AssessmentsController.prototype, "generateTopicAssessment", null);
 __decorate([

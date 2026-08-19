@@ -149,54 +149,60 @@ export default function Dashboard() {
       </section>
 
       {/* Pending Assessments Section (Outside the 240px restricted grid) */}
-      <section>
-        <BentoCard colSpanClass="" bgColorClass="bg-surface-container-lowest" className="w-full">
-           <div className="flex justify-between items-center mb-6">
-              <h3 className="font-headline-md text-2xl flex items-center gap-2">
-                 <span className="material-symbols-outlined text-primary">pending_actions</span> Pending Assessments
-              </h3>
-           </div>
-           
-           {pendingAssessments.length === 0 ? (
-              <div className="text-center py-16 bg-white/50 border border-dashed border-outline-variant/50 rounded-3xl flex flex-col items-center justify-center gap-3">
-                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                    <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
-                 </div>
-                 <h4 className="font-bold text-lg">You're all caught up!</h4>
-                 <p className="text-text-secondary text-sm">No assessments pending. Great job staying on top of your learning.</p>
-              </div>
-           ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {pendingAssessments.map(a => (
-                    <div key={a.assessment_id} className="relative group overflow-hidden bg-white border border-outline-variant/30 p-6 rounded-[1.5rem] flex flex-col hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full">
-                       {/* Decorative Top Accent */}
-                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary/40 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                       
-                       <div className="flex-1 z-10 relative">
-                          <div className="flex justify-between items-start mb-5">
-                             <span className="text-[10px] uppercase font-bold tracking-widest bg-primary/10 text-primary px-3 py-1 rounded-full">{a.assessment_type}</span>
-                             <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-md text-text-secondary">
-                                <span className="material-symbols-outlined text-[14px]">help</span>
-                                <span className="text-[11px] font-bold uppercase tracking-wider">{a.total_questions} Qs</span>
-                             </div>
-                          </div>
-                          
-                          <h4 className="font-headline-sm text-xl mb-2 text-text-primary group-hover:text-primary transition-colors leading-tight">{a.title}</h4>
-                          <div className="flex items-center gap-2 text-sm text-text-secondary mb-4">
-                             <span className="material-symbols-outlined text-[16px] text-primary/60">menu_book</span>
-                             <span className="line-clamp-1">{a.course?.title}</span>
-                          </div>
-                       </div>
-                       
-                       <button onClick={() => navigate(`/assessments/${a.assessment_id}/take`)} className="mt-auto w-full bg-surface-container-low group-hover:bg-primary text-primary group-hover:text-white font-bold text-sm py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-sm">
-                          Take Assessment
-                          <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                       </button>
-                    </div>
-                 ))}
-              </div>
-           )}
-        </BentoCard>
+      {/* Pending Assessments Section */}
+      <section className="w-full mb-12">
+         <div className="flex justify-between items-center mb-6">
+            <h3 className="font-headline-md text-2xl flex items-center gap-2">
+               <span className="material-symbols-outlined text-primary">pending_actions</span> Pending Assessments
+            </h3>
+         </div>
+         
+         {pendingAssessments.length === 0 ? (
+            <div className="text-center py-16 bg-white/50 border border-dashed border-outline-variant/50 rounded-[32px] flex flex-col items-center justify-center gap-3">
+               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <span className="material-symbols-outlined text-primary text-3xl">task_alt</span>
+               </div>
+               <h4 className="font-headline-md text-xl">You're all caught up!</h4>
+               <p className="font-body-md text-text-secondary text-sm">No assessments pending. Great job staying on top of your learning.</p>
+            </div>
+         ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {pendingAssessments.map((a, index) => {
+                  const colors = ['bg-card-lavender', 'bg-card-mint', 'bg-card-coral'];
+                  const bgColor = colors[index % colors.length];
+                  
+                  return (
+                  <div key={a.assessment_id} className={`bento-card ${bgColor} rounded-[32px] p-8 flex flex-col hover:shadow-xl transition-all duration-400 border border-black/5 relative overflow-hidden group shadow-sm`}>
+                     {/* Decorative Background Element */}
+                     <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                     
+                     <div className="flex-1 z-10 relative">
+                        <div className="flex justify-between items-start mb-6">
+                           <span className="font-label-mono text-[10px] uppercase font-bold tracking-widest border border-black/10 text-primary px-3 py-1 rounded-full bg-white/40 backdrop-blur-md">
+                              {a.assessment_type}
+                           </span>
+                           <div className="flex items-center gap-1 font-label-mono bg-white/40 border border-black/5 px-2 py-1 rounded-full text-text-secondary backdrop-blur-md">
+                              <span className="material-symbols-outlined text-[14px]">help</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider">{a.total_questions} Qs</span>
+                           </div>
+                        </div>
+                        
+                        <h4 className="font-headline-md text-2xl mb-3 text-primary leading-tight line-clamp-2">{a.title}</h4>
+                        <div className="flex items-center gap-2 font-label-mono text-xs text-text-secondary mb-6">
+                           <span className="material-symbols-outlined text-[16px] text-primary/60">menu_book</span>
+                           <span className="line-clamp-1">{a.course?.title}</span>
+                        </div>
+                     </div>
+                     
+                     <button onClick={() => navigate(`/assessments/${a.assessment_id}/take`)} className="z-10 mt-auto w-full bg-primary group-hover:bg-accent-neon text-on-primary group-hover:text-primary font-label-mono text-[12px] font-bold py-4 rounded-full transition-colors duration-300 flex items-center justify-center gap-2">
+                        TAKE ASSESSMENT
+                        <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                     </button>
+                  </div>
+                  );
+               })}
+            </div>
+         )}
       </section>
     </StudentLayout>
   );

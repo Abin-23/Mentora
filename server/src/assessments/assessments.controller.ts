@@ -24,8 +24,9 @@ export class AssessmentsController {
   generateTopicAssessment(
     @Param('courseId', ParseIntPipe) courseId: number,
     @Param('topicId', ParseIntPipe) topicId: number,
+    @Req() req: any,
   ) {
-    return this.aiGenerationService.generateTopicAssessment(courseId, topicId);
+    return this.aiGenerationService.generateTopicAssessment(courseId, topicId, req.user.user_id);
   }
 
   @Get('course/:courseId')

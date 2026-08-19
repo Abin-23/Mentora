@@ -5,7 +5,7 @@ export declare class AiGenerationService {
     private ai;
     constructor(prisma: PrismaService);
     generateInitialAssessment(courseId: number): Promise<void>;
-    generateTopicAssessment(courseId: number, topicId: number): Promise<{
+    generateTopicAssessment(courseId: number, topicId: number, studentId: number): Promise<{
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
         description: string | null;

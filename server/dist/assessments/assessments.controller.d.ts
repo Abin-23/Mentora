@@ -4,7 +4,7 @@ export declare class AssessmentsController {
     private readonly assessmentsService;
     private readonly aiGenerationService;
     constructor(assessmentsService: AssessmentsService, aiGenerationService: AiGenerationService);
-    generateTopicAssessment(courseId: number, topicId: number): Promise<{
+    generateTopicAssessment(courseId: number, topicId: number, req: any): Promise<{
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
         description: string | null;
@@ -94,8 +94,8 @@ export declare class AssessmentsController {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;
@@ -151,8 +151,8 @@ export declare class AssessmentsController {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;
@@ -165,9 +165,9 @@ export declare class AssessmentsController {
         selectedOptionId?: number;
         answerText?: string;
     }, req: any): Promise<{
+        attempt_id: number;
         question_id: number;
         is_correct: boolean | null;
-        attempt_id: number;
         answer_id: number;
         selected_option_id: number | null;
         answer_text: string | null;
@@ -190,8 +190,8 @@ export declare class AssessmentsController {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;

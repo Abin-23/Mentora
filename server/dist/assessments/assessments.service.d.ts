@@ -84,8 +84,8 @@ export declare class AssessmentsService {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;
@@ -94,9 +94,9 @@ export declare class AssessmentsService {
         percentage: import("@prisma/client/runtime/library").Decimal | null;
     }>;
     submitAnswer(attemptId: number, studentId: number, questionId: number, selectedOptionId?: number, answerText?: string): Promise<{
+        attempt_id: number;
         question_id: number;
         is_correct: boolean | null;
-        attempt_id: number;
         answer_id: number;
         selected_option_id: number | null;
         answer_text: string | null;
@@ -153,8 +153,8 @@ export declare class AssessmentsService {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;
@@ -166,8 +166,8 @@ export declare class AssessmentsService {
         status: import(".prisma/client").$Enums.AttemptStatus;
         created_at: Date;
         assessment_id: number;
-        attempt_id: number;
         student_id: number;
+        attempt_id: number;
         attempt_number: number;
         started_at: Date;
         expires_at: Date | null;

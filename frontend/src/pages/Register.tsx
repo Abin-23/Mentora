@@ -1,4 +1,4 @@
-import { FormEvent, useState, useEffect } from 'react';
+import { FormEvent, useState, useEffect, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import disposableDomains from 'disposable-email-domains';
 import AuthLayout from '../components/layout/AuthLayout';
@@ -32,6 +32,12 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [fullNameError, setFullNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,37 +49,87 @@ export default function Register() {
     setCurrentTip(TIPS[randomIdx]);
   }, []);
 
-  const validateForm = () => {
-    if (fullName.trim().length < 2) {
-      return 'Full name must be at least 2 characters long.';
+  const handleFullNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFullName(val);
+    if (val.trim().length > 0 && val.trim().length < 2) setFullNameError('Full name must be at least 2 characters long.');
+    else if (/\d/.test(val)) setFullNameError('Full name cannot contain numbers.');
+    else setFullNameError('');
+  };
+  
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+    const domain = val.split('@')[1]?.toLowerCase();
+    if (domain && disposableDomains.includes(domain)) setEmailError('Disposable email addresses are not allowed.');
+    else if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setEmailError('Invalid email format.');
+    else setEmailError('');
+  };
+
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setPassword(val);
+    if (val && (val.length < 8 || !/[A-Z]/.test(val) || !/[a-z]/.test(val) || !/\d/.test(val) || !/[^A-Za-z0-9]/.test(val))) {
+      setPasswordError('Must be at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol.');
+    } else {
+      setPasswordError('');
     }
+    if (confirmPassword && val !== confirmPassword) setConfirmPasswordError('Passwords do not match.');
+    else if (confirmPassword) setConfirmPasswordError('');
+  };
+
+  const handleConfirmPasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setConfirmPassword(val);
+    if (val && password !== val) setConfirmPasswordError('Passwords do not match.');
+    else setConfirmPasswordError('');
+  };
+
+  const validateForm = () => {
+    let isValid = true;
     
-    if (/\d/.test(fullName)) {
-      return 'Full name cannot contain numbers.';
+    if (fullName.trim().length < 2) {
+      setFullNameError('Full name must be at least 2 characters long.');
+      isValid = false;
+    } else if (/\d/.test(fullName)) {
+      setFullNameError('Full name cannot contain numbers.');
+      isValid = false;
+    } else {
+      setFullNameError('');
     }
 
     const domain = email.split('@')[1]?.toLowerCase();
-    if (disposableDomains.includes(domain)) {
-      return 'Disposable email addresses are not allowed.';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Invalid email format.');
+      isValid = false;
+    } else if (domain && disposableDomains.includes(domain)) {
+      setEmailError('Disposable email addresses are not allowed.');
+      isValid = false;
+    } else {
+      setEmailError('');
     }
 
     if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-      return 'Password must be at least 8 characters and contain at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol.';
+      setPasswordError('Must be at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol.');
+      isValid = false;
+    } else {
+      setPasswordError('');
     }
 
     if (password !== confirmPassword) {
-      return 'Passwords do not match.';
+      setConfirmPasswordError('Passwords do not match.');
+      isValid = false;
+    } else {
+      setConfirmPasswordError('');
     }
 
-    return null;
+    return isValid;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
       return;
     }
 
@@ -160,42 +216,44 @@ export default function Register() {
       <form onSubmit={handleSubmit} className="w-full space-y-5">
         <div className="space-y-2">
           <label className="font-label-mono text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Full Name</label>
-          <div className="bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border border-transparent focus-within:border-primary/20 hover:bg-surface-container">
+          <div className={`bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border ${fullNameError ? 'border-error/50 focus-within:border-error' : 'border-transparent focus-within:border-primary/20'} hover:bg-surface-container`}>
             <input 
               className="w-full bg-transparent border-none focus:ring-0 font-body-md text-on-surface placeholder:text-outline-variant p-0 outline-none" 
               placeholder="Jane Doe" 
               required 
               type="text"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={handleFullNameChange}
             />
           </div>
+          {fullNameError && <p className="text-error text-xs mt-1 ml-2">{fullNameError}</p>}
         </div>
 
         <div className="space-y-2">
           <label className="font-label-mono text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Email Address</label>
-          <div className="bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border border-transparent focus-within:border-primary/20 hover:bg-surface-container">
+          <div className={`bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border ${emailError ? 'border-error/50 focus-within:border-error' : 'border-transparent focus-within:border-primary/20'} hover:bg-surface-container`}>
             <input 
               className="w-full bg-transparent border-none focus:ring-0 font-body-md text-on-surface placeholder:text-outline-variant p-0 outline-none" 
               placeholder="name@domain.com" 
               required 
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
             />
           </div>
+          {emailError && <p className="text-error text-xs mt-1 ml-2">{emailError}</p>}
         </div>
         
         <div className="space-y-2">
           <label className="font-label-mono text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Password</label>
-          <div className="bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border border-transparent focus-within:border-primary/20 hover:bg-surface-container flex items-center">
+          <div className={`bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border ${passwordError ? 'border-error/50 focus-within:border-error' : 'border-transparent focus-within:border-primary/20'} hover:bg-surface-container flex items-center`}>
             <input 
               className="w-full bg-transparent border-none focus:ring-0 font-body-md text-on-surface placeholder:text-outline-variant p-0 outline-none" 
               placeholder="••••••••" 
               required 
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
             />
             <button 
               className="text-on-surface-variant hover:text-primary ml-2 cursor-pointer transition-colors flex-shrink-0" 
@@ -207,20 +265,22 @@ export default function Register() {
               </span>
             </button>
           </div>
+          {passwordError && <p className="text-error text-xs mt-1 ml-2">{passwordError}</p>}
         </div>
 
         <div className="space-y-2">
           <label className="font-label-mono text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Confirm Password</label>
-          <div className="bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border border-transparent focus-within:border-primary/20 hover:bg-surface-container">
+          <div className={`bg-surface-container-low rounded-2xl px-5 py-4 transition-all duration-200 border ${confirmPasswordError ? 'border-error/50 focus-within:border-error' : 'border-transparent focus-within:border-primary/20'} hover:bg-surface-container`}>
             <input 
               className="w-full bg-transparent border-none focus:ring-0 font-body-md text-on-surface placeholder:text-outline-variant p-0 outline-none" 
               placeholder="••••••••" 
               required 
               type={showPassword ? "text" : "password"}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={handleConfirmPasswordChange}
             />
           </div>
+          {confirmPasswordError && <p className="text-error text-xs mt-1 ml-2">{confirmPasswordError}</p>}
         </div>
         
         <div className="pt-4">

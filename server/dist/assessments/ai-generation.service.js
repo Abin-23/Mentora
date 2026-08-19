@@ -160,9 +160,9 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
             this.logger.error('Error generating initial assessment', error);
         }
     }
-    async generateTopicAssessment(courseId, topicId) {
+    async generateTopicAssessment(courseId, topicId, studentId) {
         if (!this.ai) {
-            this.logger.error('Cannot generate topic assessment without GEMINI_API_KEY');
+            this.logger.warn('AI Client not initialized. Cannot generate topic assessment.');
             return null;
         }
         try {
@@ -176,7 +176,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                 this.logger.error(`Course #${courseId} or Topic #${topicId} not found`);
                 return null;
             }
-            const existing = await this.prisma.assessment.findFirst({
+            const existingAssessments = await this.prisma.assessment.findMany({
                 where: {
                     course_id: courseId,
                     assessment_type: 'TOPIC',
@@ -184,12 +184,20 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                         some: { topic_id: topicId }
                     }
                 },
+                include: {
+                    attempts: {
+                        where: {
+                            student_id: studentId
+                        }
+                    }
+                }
             });
-            if (existing) {
-                this.logger.log(`Course #${courseId} already has a TOPIC assessment for Topic #${topicId}. Returning existing.`);
-                return existing;
+            const unsubmittedAssessment = existingAssessments.find(a => !a.attempts.some(attempt => attempt.status === 'SUBMITTED'));
+            if (unsubmittedAssessment) {
+                this.logger.log(`Student #${studentId} has unsubmitted TOPIC assessment #${unsubmittedAssessment.assessment_id}. Returning existing.`);
+                return unsubmittedAssessment;
             }
-            this.logger.log(`Generating TOPIC assessment for Course #${courseId}, Topic #${topicId}`);
+            this.logger.log(`Student #${studentId} submitted all previous assessments. Generating fresh TOPIC assessment for Course #${courseId}, Topic #${topicId}`);
             const prompt = `
         You are an expert educator. Create a topic assessment for a course titled "${course.title}".
         The specific topic being assessed is:
@@ -213,10 +221,26 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
           ]
         }
       `;
-            const response = await this.ai.models.generateContent({
-                model: 'gemini-flash-latest',
-                contents: prompt,
-            });
+            let response;
+            const fallbackModels = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash'];
+            let lastError;
+            for (const modelName of fallbackModels) {
+                try {
+                    response = await this.ai.models.generateContent({
+                        model: modelName,
+                        contents: prompt,
+                    });
+                    this.logger.log(`Successfully generated assessment using model: ${modelName}`);
+                    break;
+                }
+                catch (error) {
+                    lastError = error;
+                    this.logger.warn(`Model ${modelName} failed (${error.message}). Falling back to next model...`);
+                }
+            }
+            if (!response) {
+                throw new Error(`All AI models failed. Last error: ${lastError?.message}`);
+            }
             const responseText = response.text;
             if (!responseText)
                 throw new Error('Empty response from Gemini');
