@@ -6,6 +6,7 @@ import { useTopicAssessment } from '../hooks/useTopicAssessment';
 import StudentLayout from '../components/layout/StudentLayout';
 import AssessmentProfileViewer from '../components/assessments/AssessmentProfileViewer';
 import CustomPdfViewer from '../components/CustomPdfViewer';
+import ReactMarkdown from 'react-markdown';
 
 interface Resource {
   resource_id: number;
@@ -49,10 +50,13 @@ export default function CoursePlayer() {
   // Assessments support
   const [assessments, setAssessments] = useState<any[]>([]);
 
-  // Adaptive Learning Support
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(false);
   const [adaptivePath, setAdaptivePath] = useState<any[] | null>(null);
   const [loadingAdaptive, setLoadingAdaptive] = useState(false);
+
+  // AI Personalized Lesson State
+  const [aiLessonData, setAiLessonData] = useState<{ topicId: number; content: string; sources: any[] } | null>(null);
+  const [loadingAiLesson, setLoadingAiLesson] = useState<number | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   const token = localStorage.getItem('access_token');
@@ -167,24 +171,52 @@ export default function CoursePlayer() {
     if (courseSlug) fetchCourse();
   }, [courseSlug, API_URL, token]);
 
-  useEffect(() => {
-    const fetchAdaptivePath = async () => {
-      if (!course || adaptivePath) return;
+  const fetchAdaptivePath = async () => {
+    if (!course || adaptivePath) return;
       setLoadingAdaptive(true);
       try {
         const res = await fetch(`${API_URL}/adaptive-learning/students/${user?.user_id}/courses/${course.course_id}/path`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('Failed to generate learning path');
-        const data = await res.json();
-        setAdaptivePath(data.recommendedTopics || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoadingAdaptive(false);
-      }
-    };
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to generate learning path');
+      const data = await res.json();
+      setAdaptivePath(data.recommendedTopics || []);
+    } catch (err) {
+      console.error('Error fetching adaptive path:', err);
+    } finally {
+      setLoadingAdaptive(false);
+    }
+  };
 
+  const generateAiLesson = async (topicId: number) => {
+    if (!user?.user_id || !course?.course_id) return;
+    setLoadingAiLesson(topicId);
+    setAiLessonData(null); // Clear previous lesson
+    try {
+      const response = await fetch(`${API_URL}/adaptive-learning/students/${user.user_id}/courses/${course.course_id}/topics/${topicId}/lesson`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch personalized lesson');
+      const data = await response.json();
+      setAiLessonData({
+        topicId,
+        content: data.lesson,
+        sources: data.sources || []
+      });
+    } catch (err) {
+      console.error('Error generating AI lesson:', err);
+      // Fallback state on error
+      setAiLessonData({
+        topicId,
+        content: "Oops! We couldn't generate the AI lesson at this moment. Please try again later.",
+        sources: []
+      });
+    } finally {
+      setLoadingAiLesson(null);
+    }
+  };
+
+  useEffect(() => {
     if (isAdaptiveMode && !adaptivePath) {
       fetchAdaptivePath();
     }
@@ -528,6 +560,38 @@ export default function CoursePlayer() {
                       
                       {activeTopicId === (topic.topic_id || topic.topicId) && (
                         <div className="bg-surface-container-lowest/50 border-t border-outline-variant/10 p-2">
+                          
+                          {/* Personalized AI Lesson Section */}
+                          {isAdaptiveMode && (
+                            <div className="mb-4 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                              <div className="flex items-center justify-between mb-2">
+                                <h5 className="font-bold text-sm text-primary flex items-center gap-2">
+                                  <span className="material-symbols-outlined text-base">auto_awesome</span>
+                                  AI Personalized Lesson
+                                </h5>
+                                <button
+                                  onClick={() => generateAiLesson(topic.topic_id || topic.topicId)}
+                                  disabled={loadingAiLesson === (topic.topic_id || topic.topicId)}
+                                  className="text-[10px] font-bold tracking-wider uppercase bg-primary text-white px-3 py-1.5 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
+                                >
+                                  {loadingAiLesson === (topic.topic_id || topic.topicId) ? (
+                                    <><span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span> Generating...</>
+                                  ) : (
+                                    <>Generate</>
+                                  )}
+                                </button>
+                              </div>
+                              
+                              {aiLessonData && aiLessonData.topicId === (topic.topic_id || topic.topicId) && (
+                                <div className="mt-3 bg-white p-4 rounded-lg border border-outline-variant/30 text-sm text-on-surface">
+                                  <div className="prose prose-sm max-w-none prose-headings:text-primary prose-a:text-accent-neon prose-strong:text-on-surface">
+                                    <ReactMarkdown>{aiLessonData.content}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {!topic.resources || topic.resources.length === 0 ? (
                             <div className="text-xs text-text-secondary p-2 italic pl-10">No resources available</div>
                           ) : (

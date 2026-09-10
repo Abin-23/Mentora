@@ -18,7 +18,7 @@ export class AssessmentsService {
   async getAssessmentsByCourse(courseId: number, user: any) {
     const isStudent = user.role === 'Student';
 
-    return this.prisma.assessment.findMany({
+    const assessments = await this.prisma.assessment.findMany({
       where: {
         course_id: courseId,
         ...(isStudent ? { status: 'PUBLISHED' } : {}),
@@ -35,6 +35,54 @@ export class AssessmentsService {
         },
       },
     });
+
+    let topicProgressMap = new Map<number, boolean>();
+    
+    if (isStudent) {
+      const resourceProgresses = await this.prisma.learningProgress.findMany({
+        where: { student_id: user.user_id, course_id: courseId }
+      });
+      const resources = await this.prisma.resource.findMany({
+        where: { topic: { course_id: courseId } }
+      });
+
+      const resourcesByTopic = new Map<number, any[]>();
+      for (const r of resources) {
+        if (!resourcesByTopic.has(r.topic_id)) {
+          resourcesByTopic.set(r.topic_id, []);
+        }
+        resourcesByTopic.get(r.topic_id)!.push(r);
+      }
+
+      for (const [topicId, topicResources] of resourcesByTopic.entries()) {
+        let totalPercent = 0;
+        for (const r of topicResources) {
+          const p = resourceProgresses.find(pr => pr.resource_id === r.resource_id);
+          if (p) totalPercent += p.progress_percent;
+        }
+        const avg = Math.round(totalPercent / topicResources.length);
+        topicProgressMap.set(topicId, avg === 100);
+      }
+    }
+
+    const filtered = [];
+    const seenTopics = new Set<number>();
+    
+    for (let i = assessments.length - 1; i >= 0; i--) {
+      const asm = assessments[i];
+      if (asm.assessment_type === 'TOPIC' && asm.topics && asm.topics.length > 0) {
+        const topicId = asm.topics[0].topic_id;
+        if (!seenTopics.has(topicId)) {
+          seenTopics.add(topicId);
+          if (!isStudent || topicProgressMap.get(topicId) === true) {
+            filtered.unshift(asm);
+          }
+        }
+      } else {
+        filtered.unshift(asm);
+      }
+    }
+    return filtered;
   }
 
   async getAssessmentForStudent(assessmentId: number) {

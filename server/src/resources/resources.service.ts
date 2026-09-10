@@ -14,6 +14,8 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import axios from 'axios';
+import FormData from 'form-data';
 
 @Injectable()
 export class ResourcesService {
@@ -143,7 +145,7 @@ export class ResourcesService {
     // it's mapped to resource_key. So we remove it from dto for prisma.
     const { link_url, ...dataToInsert } = createResourceDto;
 
-    return this.prisma.resource.create({
+    const newResource = await this.prisma.resource.create({
       data: {
         ...dataToInsert,
         topic_id: topicId,
@@ -154,6 +156,39 @@ export class ResourcesService {
         file_size: fileSize > 0 ? fileSize : null,
       },
     });
+
+    // RAG Ingestion Logic
+    if (newResource.is_ai_source && newResource.resource_type === 'PDF' && resourceFile) {
+      try {
+        const topic = await this.prisma.topic.findUnique({ where: { topic_id: topicId } });
+        if (topic) {
+          const formData = new FormData();
+          formData.append('file', resourceFile.buffer, {
+            filename: resourceFile.originalname,
+            contentType: resourceFile.mimetype,
+          });
+          formData.append('course_id', topic.course_id.toString());
+          formData.append('topic_id', topicId.toString());
+          formData.append('resource_id', newResource.resource_id.toString());
+          formData.append('resource_name', newResource.resource_title);
+
+          await axios.post('http://localhost:8000/api/ingest/pdf', formData, {
+            headers: formData.getHeaders(),
+          });
+          console.log(`Successfully ingested resource ${newResource.resource_id} to RAG`);
+
+          // Invalidate AI lesson cache for this topic
+          await this.prisma.topicAILesson.deleteMany({
+            where: { topic_id: topicId },
+          });
+        }
+      } catch (err) {
+        console.error('Failed to ingest resource to RAG service:', err);
+        // We do not fail the overall request, but log the error.
+      }
+    }
+
+    return newResource;
   }
 
   async findAllByTopic(topicId: number) {
@@ -174,7 +209,7 @@ export class ResourcesService {
   }
 
   async update(id: number, updateResourceDto: UpdateResourceDto) {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     const { link_url, ...dataToUpdate } = updateResourceDto;
 
     // if link_url is provided, it replaces the resource_key
@@ -182,10 +217,29 @@ export class ResourcesService {
       (dataToUpdate as any).resource_key = link_url;
     }
 
-    return this.prisma.resource.update({
+    const updated = await this.prisma.resource.update({
       where: { resource_id: id },
       data: dataToUpdate,
     });
+
+    // If is_ai_source toggled, invalidate cache
+    if (existing.is_ai_source !== updated.is_ai_source) {
+      await this.prisma.topicAILesson.deleteMany({
+        where: { topic_id: existing.topic_id },
+      });
+    }
+
+    // If is_ai_source was turned off, delete from RAG
+    if (existing.is_ai_source && dataToUpdate.is_ai_source === false) {
+      try {
+        await axios.delete(`http://localhost:8000/api/documents/${id}`);
+        console.log(`Deleted resource ${id} from RAG`);
+      } catch (err) {
+        console.error('Failed to delete resource from RAG service:', err);
+      }
+    }
+
+    return updated;
   }
 
   async remove(id: number) {
@@ -197,6 +251,19 @@ export class ResourcesService {
     }
     if (resource.thumbnail_key) {
       await this.deleteFromS3(resource.thumbnail_key);
+    }
+
+    // Delete from RAG if it was an AI source
+    if (resource.is_ai_source) {
+      // Invalidate AI lesson cache
+      await this.prisma.topicAILesson.deleteMany({
+        where: { topic_id: resource.topic_id },
+      });
+      try {
+        await axios.delete(`http://localhost:8000/api/documents/${id}`);
+      } catch (err) {
+        console.error('Failed to delete resource from RAG service:', err);
+      }
     }
 
     return this.prisma.resource.delete({

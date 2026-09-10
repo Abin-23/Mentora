@@ -143,7 +143,7 @@ export default function CustomPdfViewer({ url, title, courseTitle, token, apiUrl
           }
         >
           <div className="flex flex-col items-center gap-8">
-            {numPages ? Array.from(new Array(numPages), (el, index) => (
+            {numPages ? Array.from(new Array(numPages), (_, index) => (
               <div key={`page_${index + 1}`} className="shadow-[0_10px_40px_rgb(0,0,0,0.1)] border border-outline-variant/20 bg-white transition-transform overflow-hidden rounded">
                 <Page 
                   pageNumber={index + 1} 

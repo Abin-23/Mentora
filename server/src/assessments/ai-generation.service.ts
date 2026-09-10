@@ -214,17 +214,22 @@ export class AiGenerationService {
         }
       });
 
-      // Find one that the student hasn't submitted yet
-      const unsubmittedAssessment = existingAssessments.find(a => 
-        !a.attempts.some(attempt => attempt.status === 'SUBMITTED')
-      );
+      // Find one that the student hasn't exhausted yet
+      const unsubmittedAssessment = existingAssessments.find(a => {
+        const submittedCount = a.attempts.filter(attempt => attempt.status === 'SUBMITTED').length;
+        return submittedCount < a.max_attempts;
+      });
 
       if (unsubmittedAssessment) {
-        this.logger.log(`Student #${studentId} has unsubmitted TOPIC assessment #${unsubmittedAssessment.assessment_id}. Returning existing.`);
+        this.logger.log(`Student #${studentId} has attempts remaining on TOPIC assessment #${unsubmittedAssessment.assessment_id}. Returning existing.`);
         return unsubmittedAssessment;
       }
 
-      this.logger.log(`Student #${studentId} submitted all previous assessments. Generating fresh TOPIC assessment for Course #${courseId}, Topic #${topicId}`);
+      if (existingAssessments.length === 0) {
+        this.logger.log(`No existing TOPIC assessments found for Course #${courseId}, Topic #${topicId}. Generating fresh assessment.`);
+      } else {
+        this.logger.log(`Student #${studentId} exhausted all attempts on previous assessments. Generating fresh TOPIC assessment for Course #${courseId}, Topic #${topicId}`);
+      }
 
       // 2. Call Gemini to generate questions
       const prompt = `
@@ -298,7 +303,7 @@ export class AiGenerationService {
             is_system_generated: true,
             total_questions: questions.length,
             passing_percentage: null, // No passing mark, used for knowledge update
-            max_attempts: 1,
+            max_attempts: 3,
             status: 'PUBLISHED',
           },
         });

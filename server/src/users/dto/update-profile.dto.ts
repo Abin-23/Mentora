@@ -4,11 +4,13 @@ import {
   MaxLength,
   Matches,
   registerDecorator,
+  IsEnum,
   ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { isValidPhoneNumber } from 'libphonenumber-js';
+import { TeachingPreference } from '@prisma/client';
 
 @ValidatorConstraint({ async: false })
 export class IsInternationalPhoneNumberConstraint implements ValidatorConstraintInterface {
@@ -53,4 +55,8 @@ export class UpdateProfileDto {
   @IsInternationalPhoneNumber()
   @MaxLength(20)
   phone?: string;
+
+  @IsOptional()
+  @IsEnum(TeachingPreference)
+  teaching_preference?: TeachingPreference;
 }

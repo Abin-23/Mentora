@@ -15,6 +15,7 @@ interface ResourceData {
   duration_seconds: number;
   sequence_number: number;
   is_preview: boolean;
+  is_ai_source: boolean;
   status: string;
 }
 
@@ -35,6 +36,7 @@ export default function ManageTopicResources() {
     description: '',
     resource_type: 'PDF',
     is_preview: false,
+    is_ai_source: false,
     status: 'Draft',
     link_url: '' // For LINK type
   });
@@ -88,6 +90,7 @@ export default function ManageTopicResources() {
         description: resource.description || '',
         resource_type: resource.resource_type,
         is_preview: resource.is_preview,
+        is_ai_source: resource.is_ai_source || false,
         status: resource.status,
         link_url: resource.resource_type === 'LINK' ? resource.resource_key : ''
       });
@@ -98,6 +101,7 @@ export default function ManageTopicResources() {
         description: '',
         resource_type: 'PDF',
         is_preview: false,
+        is_ai_source: false,
         status: 'Draft',
         link_url: ''
       });
@@ -132,11 +136,14 @@ export default function ManageTopicResources() {
       if (editingId) {
         // Edit is JSON because we usually don't support file re-upload in standard simple edit.
         // If we want to re-upload, we'd use formData. For now, we'll keep it JSON to edit metadata.
+        const isAiSourceValid = formData.resource_type === 'PDF' ? formData.is_ai_source : false;
+
         const payload = {
           resource_title: formData.resource_title,
           description: formData.description,
           status: formData.status,
           is_preview: formData.is_preview,
+          is_ai_source: isAiSourceValid,
           link_url: formData.resource_type === 'LINK' ? formData.link_url : undefined
         };
 
@@ -150,11 +157,14 @@ export default function ManageTopicResources() {
         });
       } else {
         // Create uses FormData to upload files
+        const isAiSourceValid = formData.resource_type === 'PDF' ? formData.is_ai_source : false;
+        
         const data = new FormData();
         data.append('resource_title', formData.resource_title);
         data.append('description', formData.description);
         data.append('resource_type', formData.resource_type);
         data.append('is_preview', formData.is_preview ? 'true' : 'false');
+        data.append('is_ai_source', isAiSourceValid ? 'true' : 'false');
         data.append('status', formData.status);
         
         if (formData.resource_type === 'LINK') {
@@ -358,6 +368,12 @@ export default function ManageTopicResources() {
                   <span className="px-2 py-0.5 bg-surface-container-high rounded text-[9px] font-bold uppercase tracking-widest text-text-secondary border border-outline-variant/30">
                     {r.resource_type}
                   </span>
+                  {r.is_ai_source && (
+                    <span className="px-2 py-0.5 bg-secondary/10 text-secondary rounded text-[9px] font-bold uppercase tracking-widest border border-secondary/20 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[10px]">smart_toy</span>
+                      AI Source
+                    </span>
+                  )}
                   {r.file_size ? (
                     <span className="text-[10px] text-text-secondary">{(r.file_size / 1024 / 1024).toFixed(2)} MB</span>
                   ) : null}
@@ -474,9 +490,32 @@ export default function ManageTopicResources() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 bg-accent-neon/10 p-4 rounded-xl border border-accent-neon/30">
-                  <input type="checkbox" id="isPreview" name="is_preview" checked={formData.is_preview} onChange={handleChange} className="w-5 h-5 accent-primary rounded cursor-pointer" />
-                  <label htmlFor="isPreview" className="font-bold text-sm text-on-surface cursor-pointer select-none">Allow Preview (Free Access)</label>
+                <div className="flex flex-col gap-3 mt-6">
+                  <div className="flex items-center gap-3 bg-accent-neon/10 p-4 rounded-xl border border-accent-neon/30">
+                    <input type="checkbox" id="isPreview" name="is_preview" checked={formData.is_preview} onChange={handleChange} className="w-5 h-5 accent-primary rounded cursor-pointer" />
+                    <label htmlFor="isPreview" className="font-bold text-sm text-on-surface cursor-pointer select-none">Allow Preview (Free Access)</label>
+                  </div>
+
+                  <div className={`flex items-start gap-3 p-4 rounded-xl border transition-colors ${formData.resource_type === 'PDF' ? 'bg-secondary/10 border-secondary/30' : 'bg-surface-container-low border-outline-variant/30 opacity-60'}`}>
+                    <input 
+                      type="checkbox" 
+                      id="isAiSource" 
+                      name="is_ai_source" 
+                      checked={formData.is_ai_source} 
+                      onChange={handleChange} 
+                      disabled={formData.resource_type !== 'PDF'}
+                      className="w-5 h-5 accent-secondary rounded cursor-pointer mt-0.5" 
+                    />
+                    <div>
+                      <label htmlFor="isAiSource" className={`font-bold text-sm ${formData.resource_type === 'PDF' ? 'text-secondary' : 'text-text-secondary'} cursor-pointer select-none flex items-center gap-1`}>
+                        <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+                        Use as AI Knowledge Source
+                      </label>
+                      <p className="text-xs text-text-secondary mt-1 max-w-[90%]">
+                        Only enable this for verified PDF course materials suitable for generating AI learning content.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>

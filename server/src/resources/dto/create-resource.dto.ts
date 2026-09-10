@@ -29,6 +29,15 @@ export class CreateResourceDto {
   is_preview?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value === true;
+  })
+  @IsBoolean()
+  is_ai_source?: boolean;
+
+  @IsOptional()
   @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
   @IsNumber()
   duration_seconds?: number;

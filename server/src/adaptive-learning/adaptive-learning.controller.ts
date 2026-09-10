@@ -24,4 +24,13 @@ export class AdaptiveLearningController {
     // In the future, this could read a persisted path from the database.
     return this.adaptiveLearningService.generatePath(studentId, courseId, { limit: 5 });
   }
+
+  @Get('topics/:topicId/lesson')
+  async getPersonalizedLesson(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @Param('topicId', ParseIntPipe) topicId: number,
+  ) {
+    return this.adaptiveLearningService.generatePersonalizedLesson(studentId, courseId, topicId);
+  }
 }

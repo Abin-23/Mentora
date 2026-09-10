@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+chromadb
+google-generativeai==0.3.2
+python-dotenv
+pydantic
+python-multipart
+pypdf
+langchain-text-splitters

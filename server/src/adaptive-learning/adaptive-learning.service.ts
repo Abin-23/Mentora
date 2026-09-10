@@ -126,4 +126,93 @@ Recommended Topics Count: ${recommendedTopics.length}`);
       recommendedTopics: hydratedTopics,
     };
   }
+
+  async generatePersonalizedLesson(studentId: number, courseId: number, topicId: number) {
+    // 1. Fetch student's knowledge state for this topic
+    const stateResult = await this.neo4jService.read(
+      `
+      MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
+      RETURN k.proficiency AS proficiency
+      `,
+      { studentId: neo4j.int(studentId), topicId: neo4j.int(topicId) }
+    );
+    
+    let proficiencyLevel = 'BEGINNER'; // Default
+    if (stateResult.records.length > 0) {
+      proficiencyLevel = stateResult.records[0].get('proficiency') || 'BEGINNER';
+    }
+
+    // 2. Fetch topic title and student teaching preference from postgres
+    const [topic, student] = await Promise.all([
+      this.prisma.topic.findUnique({ where: { topic_id: topicId } }),
+      this.prisma.user.findUnique({ where: { user_id: studentId } })
+    ]);
+
+    if (!topic || !student) {
+      throw new NotFoundException(`Topic or Student not found`);
+    }
+
+    const teachingPreference = student.teaching_preference;
+
+    // 3. Check if topic has any approved AI Knowledge Sources
+    const hasAiSource = await this.prisma.resource.findFirst({
+      where: { topic_id: topicId, is_ai_source: true }
+    });
+
+    if (!hasAiSource) {
+      return {
+        lesson: "AI learning content is not available for this topic because no AI Knowledge Source has been approved yet.",
+        sources: [],
+        noAiSources: true
+      };
+    }
+
+    // 4. Check PostgreSQL cache
+    const cachedLesson = await this.prisma.topicAILesson.findUnique({
+      where: {
+        topic_id_proficiency_level_teaching_preference: {
+          topic_id: topicId,
+          proficiency_level: proficiencyLevel,
+          teaching_preference: teachingPreference
+        }
+      }
+    });
+
+    if (cachedLesson) {
+      return {
+        lesson: cachedLesson.content,
+        sources: cachedLesson.sources
+      };
+    }
+
+    // 5. Call RAG service if not cached
+    try {
+      const axios = require('axios');
+      const response = await axios.post('http://localhost:8000/api/generate_lesson', {
+        course_id: courseId,
+        topic_id: topicId,
+        topic_title: topic.topic_title,
+        proficiency_level: proficiencyLevel,
+        teaching_preference: teachingPreference
+      });
+      
+      const { lesson, sources } = response.data;
+
+      // 6. Save to cache
+      await this.prisma.topicAILesson.create({
+        data: {
+          topic_id: topicId,
+          proficiency_level: proficiencyLevel,
+          teaching_preference: teachingPreference,
+          content: lesson,
+          sources: sources
+        }
+      });
+
+      return { lesson, sources };
+    } catch (err: any) {
+      console.error('Error calling RAG service for personalized lesson:', err.message);
+      throw new Error('Failed to generate personalized lesson');
+    }
+  }
 }

@@ -90,6 +90,8 @@ model User {
   reset_token         String?   @db.VarChar(255)
   reset_token_expires DateTime?
 
+  teaching_preference TeachingPreference @default(DIRECT)
+
   categories          Category[]          @relation("CreatedCategories")
   managed_courses     Course[]            @relation("AdminCourses")
   uploaded_resources  Resource[]          @relation("UploadedResources")
@@ -172,6 +174,7 @@ model Topic {
   assessment_topic_results AssessmentTopicResult[]
   learning_progress        LearningProgress[]
   learning_activities      LearningActivity[]
+  ai_lessons               TopicAILesson[]
 
   @@map("topics")
 }
@@ -188,6 +191,7 @@ model Resource {
   duration_seconds Int?
   sequence_number  Int
   is_preview       Boolean      @default(false)
+  is_ai_source     Boolean      @default(false)
   status           CourseStatus @default(Draft)
   uploaded_by      Int
   created_at       DateTime     @default(now()) @db.Timestamp(6)
@@ -295,6 +299,16 @@ enum ProficiencyLevel {
   DEVELOPING
   PROFICIENT
   ADVANCED
+}
+
+enum TeachingPreference {
+  DIRECT
+  DETAILED
+  EXAMPLE_FIRST
+  STEP_BY_STEP
+  ANALOGY_BASED
+  SCENARIO_BASED
+  PRACTICE_FIRST
 }
 
 enum EventSeverity {
@@ -525,4 +539,20 @@ model LearningActivity {
   resource Resource @relation(fields: [resource_id], references: [resource_id], onDelete: Cascade)
 
   @@map("learning_activities")
+}
+
+model TopicAILesson {
+  id                  Int                @id @default(autoincrement())
+  topic_id            Int
+  proficiency_level   String             @db.VarChar(50)
+  teaching_preference TeachingPreference
+  content             String             @db.Text
+  sources             Json?
+  created_at          DateTime           @default(now()) @db.Timestamp(6)
+  updated_at          DateTime           @updatedAt @db.Timestamp(6)
+
+  topic               Topic              @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+
+  @@unique([topic_id, proficiency_level, teaching_preference])
+  @@map("topic_ai_lessons")
 }
