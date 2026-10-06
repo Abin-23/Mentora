@@ -18,10 +18,23 @@ const learning_progress_service_1 = require("./learning-progress.service");
 const start_progress_dto_1 = require("./dto/start-progress.dto");
 const update_progress_dto_1 = require("./dto/update-progress.dto");
 const passport_1 = require("@nestjs/passport");
+const log_block_interaction_dto_1 = require("./dto/log-block-interaction.dto");
 let LearningProgressController = class LearningProgressController {
     learningProgressService;
     constructor(learningProgressService) {
         this.learningProgressService = learningProgressService;
+    }
+    logBlockInteraction(req, dto) {
+        return this.learningProgressService.logBlockInteraction(req.user.user_id, dto);
+    }
+    getAIJourneyState(req, courseId, topicId) {
+        return this.learningProgressService.getAIJourneyState(req.user.user_id, courseId, topicId);
+    }
+    saveAIJourneyState(req, courseId, topicId, state) {
+        return this.learningProgressService.saveAIJourneyState(req.user.user_id, courseId, topicId, state);
+    }
+    getConceptPerformance(req, courseId, topicId) {
+        return this.learningProgressService.getConceptPerformance(req.user.user_id, courseId ? parseInt(courseId, 10) : undefined, topicId ? parseInt(topicId, 10) : undefined);
     }
     startProgress(req, dto) {
         return this.learningProgressService.startProgress(req.user.user_id, dto);
@@ -46,6 +59,42 @@ let LearningProgressController = class LearningProgressController {
     }
 };
 exports.LearningProgressController = LearningProgressController;
+__decorate([
+    (0, common_1.Post)('block-interaction'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, log_block_interaction_dto_1.LogBlockInteractionDto]),
+    __metadata("design:returntype", void 0)
+], LearningProgressController.prototype, "logBlockInteraction", null);
+__decorate([
+    (0, common_1.Get)('ai-journey'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('courseId', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('topicId', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, Number]),
+    __metadata("design:returntype", void 0)
+], LearningProgressController.prototype, "getAIJourneyState", null);
+__decorate([
+    (0, common_1.Post)('ai-journey'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('courseId', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('topicId', common_1.ParseIntPipe)),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, Number, Object]),
+    __metadata("design:returntype", void 0)
+], LearningProgressController.prototype, "saveAIJourneyState", null);
+__decorate([
+    (0, common_1.Get)('concept-performance'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('courseId')),
+    __param(2, (0, common_1.Query)('topicId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], LearningProgressController.prototype, "getConceptPerformance", null);
 __decorate([
     (0, common_1.Post)('start'),
     __param(0, (0, common_1.Req)()),

@@ -44,6 +44,11 @@ export class AssessmentsController {
     return this.assessmentsService.getAssessmentForStudent(id);
   }
 
+  @Get(':id/attempts/current')
+  getCurrentAttempt(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.assessmentsService.getCurrentAttempt(id, req.user.user_id);
+  }
+
   @Post(':id/attempts')
   startAttempt(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.assessmentsService.startAttempt(id, req.user.user_id);
@@ -62,6 +67,11 @@ export class AssessmentsController {
       body.selectedOptionId,
       body.answerText,
     );
+  }
+
+  @Post('attempts/:attemptId/next-question')
+  async getNextQuestion(@Param('attemptId', ParseIntPipe) attemptId: number, @Req() req: any) {
+    return this.aiGenerationService.generateNextAdaptiveQuestion(attemptId, req.user.user_id);
   }
 
   @Post('attempts/:attemptId/events')

@@ -50,12 +50,12 @@ export default function StudentLayout({ children, user }: StudentLayoutProps) {
             <span className={`material-symbols-outlined ${location.pathname === '/courses' ? 'text-primary' : ''}`}>local_library</span>
             <span className="font-label-mono text-label-mono">Courses</span>
           </Link>
-          <Link to="#" className="flex items-center space-x-3 text-on-surface-variant hover:text-primary pl-4 py-2 transition-colors duration-200">
-            <span className="material-symbols-outlined">psychology</span>
+          <Link to="/ai-mentor" className={`flex items-center space-x-3 pl-4 py-2 transition-colors duration-200 ${location.pathname === '/ai-mentor' ? 'text-primary font-bold border-l-4 border-primary' : 'text-on-surface-variant hover:text-primary'}`}>
+            <span className={`material-symbols-outlined ${location.pathname === '/ai-mentor' ? 'text-primary' : ''}`}>psychology</span>
             <span className="font-label-mono text-label-mono">AI Mentor</span>
           </Link>
-          <Link to="#" className="flex items-center space-x-3 text-on-surface-variant hover:text-primary pl-4 py-2 transition-colors duration-200">
-            <span className="material-symbols-outlined">insights</span>
+          <Link to="/progress" className={`flex items-center space-x-3 pl-4 py-2 transition-colors duration-200 ${location.pathname === '/progress' ? 'text-primary font-bold border-l-4 border-primary' : 'text-on-surface-variant hover:text-primary'}`}>
+            <span className={`material-symbols-outlined ${location.pathname === '/progress' ? 'text-primary' : ''}`}>insights</span>
             <span className="font-label-mono text-label-mono">Progress</span>
           </Link>
           <Link to="/profile" className={`flex items-center space-x-3 pl-4 py-2 transition-colors duration-200 ${location.pathname === '/profile' ? 'text-primary font-bold border-l-4 border-primary' : 'text-on-surface-variant hover:text-primary'}`}>

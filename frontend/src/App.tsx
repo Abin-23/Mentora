@@ -18,8 +18,12 @@ import ManageAssessments from './pages/ManageAssessments';
 import Profile from './pages/Profile';
 import CourseDetails from './pages/CourseDetails';
 import CoursePlayer from './pages/CoursePlayer';
+import StudentDashboardPage from './pages/StudentDashboardPage';
 import MyLearning from './pages/MyLearning';
 import TakeAssessmentPage from './pages/TakeAssessmentPage';
+import AIMentorPage from './pages/AIMentorPage';
+import GlobalProgressPage from './pages/GlobalProgressPage';
+import CertificateViewPage from './pages/CertificateViewPage';
 
 import GuestRoute from './components/layout/GuestRoute';
 
@@ -40,8 +44,12 @@ function App() {
         <Route path="/courses/:courseSlug" element={<CourseDetails />} />
         <Route path="/courses/category/:categorySlug" element={<CategoryCourses />} />
         <Route path="/learn/:courseSlug" element={<CoursePlayer />} />
+        <Route path="/learn/:courseSlug/progress" element={<StudentDashboardPage />} />
         <Route path="/assessments/:assessmentId/take" element={<TakeAssessmentPage />} />
         <Route path="/my-learning" element={<MyLearning />} />
+        <Route path="/ai-mentor" element={<AIMentorPage />} />
+        <Route path="/progress" element={<GlobalProgressPage />} />
+        <Route path="/certificate/:credentialId" element={<CertificateViewPage />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<ManageUsers />} />
         <Route path="/admin/categories" element={<ManageCategories />} />

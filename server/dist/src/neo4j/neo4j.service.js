@@ -61,8 +61,8 @@ let Neo4jService = Neo4jService_1 = class Neo4jService {
         return this.isConnected;
     }
     async write(cypher, params) {
-        if (!this.driver || !this.isConnected) {
-            throw new Error('Neo4j is not connected');
+        if (!this.driver) {
+            throw new Error('Neo4j driver is not initialized');
         }
         const session = this.driver.session({
             database: process.env.NEO4J_DATABASE || 'neo4j',
@@ -77,8 +77,8 @@ let Neo4jService = Neo4jService_1 = class Neo4jService {
         }
     }
     async read(cypher, params) {
-        if (!this.driver || !this.isConnected) {
-            throw new Error('Neo4j is not connected');
+        if (!this.driver) {
+            throw new Error('Neo4j driver is not initialized');
         }
         const session = this.driver.session({
             database: process.env.NEO4J_DATABASE || 'neo4j',

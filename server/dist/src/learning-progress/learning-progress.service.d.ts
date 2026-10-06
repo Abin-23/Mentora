@@ -52,22 +52,55 @@ export declare class LearningProgressService {
     getTopicProgress(userId: number, topicId: number): Promise<number>;
     getCourseProgress(userId: number, courseId: number): Promise<number>;
     getMyActivities(userId: number, limit?: number): Promise<({
+        course: {
+            title: string;
+        };
         topic: {
             topic_title: string;
         };
         resource: {
             resource_title: string;
-        };
+        } | null;
     } & {
         student_id: number;
         course_id: number;
         topic_id: number;
-        resource_id: number;
+        resource_id: number | null;
         created_at: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activity_type: import(".prisma/client").$Enums.ActivityType;
         activity_id: number;
     })[]>;
+    logBlockInteraction(userId: number, dto: any): Promise<{
+        student_id: number;
+        course_id: number;
+        topic_id: number;
+        resource_id: number | null;
+        created_at: Date;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        activity_type: import(".prisma/client").$Enums.ActivityType;
+        activity_id: number;
+    }>;
+    getConceptPerformance(userId: number, courseId?: number, topicId?: number): Promise<{
+        concepts: {
+            conceptTag: string;
+            attempts: number;
+            correct: number;
+            accuracy: number;
+            performance: string;
+        }[];
+    }>;
+    getAIJourneyState(userId: number, courseId: number, topicId: number): Promise<any>;
+    saveAIJourneyState(userId: number, courseId: number, topicId: number, state: any): Promise<{
+        student_id: number;
+        course_id: number;
+        topic_id: number;
+        resource_id: number | null;
+        created_at: Date;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        activity_type: import(".prisma/client").$Enums.ActivityType;
+        activity_id: number;
+    }>;
     getProgressByTopicResources(userId: number, topicId: number): Promise<{
         progress_id: number;
         student_id: number;

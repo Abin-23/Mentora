@@ -150,8 +150,116 @@ let LearningProgressService = class LearningProgressService {
             orderBy: { created_at: 'desc' },
             take: limit,
             include: {
-                resource: { select: { resource_title: true } },
-                topic: { select: { topic_title: true } }
+                course: { select: { title: true } },
+                topic: { select: { topic_title: true } },
+                resource: { select: { resource_title: true } }
+            }
+        });
+    }
+    async logBlockInteraction(userId, dto) {
+        const { courseId, topicId, blockType, isCorrect, attemptNumber, studentAnswer, blockId, lessonId, conceptTags } = dto;
+        const topic = await this.prisma.topic.findFirst({
+            where: { topic_id: topicId, course_id: courseId }
+        });
+        if (!topic) {
+            throw new Error('Topic not found or does not belong to the given course.');
+        }
+        return this.prisma.learningActivity.create({
+            data: {
+                student_id: userId,
+                course_id: courseId,
+                topic_id: topicId,
+                activity_type: 'AI_BLOCK_INTERACTION',
+                metadata: {
+                    blockType,
+                    isCorrect,
+                    attemptNumber,
+                    studentAnswer,
+                    blockId,
+                    lessonId,
+                    conceptTags
+                }
+            }
+        });
+    }
+    async getConceptPerformance(userId, courseId, topicId) {
+        const whereClause = {
+            student_id: userId,
+            activity_type: 'AI_BLOCK_INTERACTION',
+        };
+        if (courseId)
+            whereClause.course_id = courseId;
+        if (topicId)
+            whereClause.topic_id = topicId;
+        const activities = await this.prisma.learningActivity.findMany({
+            where: whereClause
+        });
+        const conceptStats = {};
+        for (const activity of activities) {
+            if (!activity.metadata)
+                continue;
+            const meta = activity.metadata;
+            if (!meta.conceptTags || !Array.isArray(meta.conceptTags))
+                continue;
+            if (meta.isCorrect === undefined || meta.isCorrect === null)
+                continue;
+            const isCorrect = Boolean(meta.isCorrect);
+            for (const tag of meta.conceptTags) {
+                if (!conceptStats[tag]) {
+                    conceptStats[tag] = { attempts: 0, correct: 0 };
+                }
+                conceptStats[tag].attempts += 1;
+                if (isCorrect) {
+                    conceptStats[tag].correct += 1;
+                }
+            }
+        }
+        const results = Object.entries(conceptStats).map(([conceptTag, stats]) => {
+            const accuracy = Math.round((stats.correct / stats.attempts) * 100);
+            let performance = 'WEAK';
+            if (accuracy >= 80)
+                performance = 'STRONG';
+            else if (accuracy >= 50)
+                performance = 'DEVELOPING';
+            return {
+                conceptTag,
+                attempts: stats.attempts,
+                correct: stats.correct,
+                accuracy,
+                performance
+            };
+        });
+        return { concepts: results };
+    }
+    async getAIJourneyState(userId, courseId, topicId) {
+        const record = await this.prisma.learningActivity.findFirst({
+            where: {
+                student_id: userId,
+                course_id: courseId,
+                topic_id: topicId,
+                activity_type: 'AI_BLOCK_INTERACTION',
+                metadata: {
+                    path: ['blockType'],
+                    equals: 'JOURNEY_STATE'
+                }
+            },
+            orderBy: { created_at: 'desc' }
+        });
+        if (!record || !record.metadata)
+            return null;
+        return record.metadata['state'] || null;
+    }
+    async saveAIJourneyState(userId, courseId, topicId, state) {
+        return this.prisma.learningActivity.create({
+            data: {
+                student_id: userId,
+                course_id: courseId,
+                topic_id: topicId,
+                activity_type: 'AI_BLOCK_INTERACTION',
+                metadata: {
+                    blockType: 'JOURNEY_STATE',
+                    state
+                }
             }
         });
     }

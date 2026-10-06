@@ -36,11 +36,17 @@ let AssessmentsController = class AssessmentsController {
     getOne(id) {
         return this.assessmentsService.getAssessmentForStudent(id);
     }
+    getCurrentAttempt(id, req) {
+        return this.assessmentsService.getCurrentAttempt(id, req.user.user_id);
+    }
     startAttempt(id, req) {
         return this.assessmentsService.startAttempt(id, req.user.user_id);
     }
     submitAnswer(attemptId, body, req) {
         return this.assessmentsService.submitAnswer(attemptId, req.user.user_id, body.questionId, body.selectedOptionId, body.answerText);
+    }
+    async getNextQuestion(attemptId, req) {
+        return this.aiGenerationService.generateNextAdaptiveQuestion(attemptId, req.user.user_id);
     }
     logSecurityEvent(attemptId, body, req) {
         return this.assessmentsService.logSecurityEvent(attemptId, req.user.user_id, body.eventType, body.severity, body.metadata);
@@ -83,6 +89,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AssessmentsController.prototype, "getOne", null);
 __decorate([
+    (0, common_1.Get)(':id/attempts/current'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", void 0)
+], AssessmentsController.prototype, "getCurrentAttempt", null);
+__decorate([
     (0, common_1.Post)(':id/attempts'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Req)()),
@@ -99,6 +113,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", void 0)
 ], AssessmentsController.prototype, "submitAnswer", null);
+__decorate([
+    (0, common_1.Post)('attempts/:attemptId/next-question'),
+    __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", Promise)
+], AssessmentsController.prototype, "getNextQuestion", null);
 __decorate([
     (0, common_1.Post)('attempts/:attemptId/events'),
     __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),

@@ -22,6 +22,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         provider_id: string | null;
         reset_token: string | null;
         reset_token_expires: Date | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
 }
 export {};

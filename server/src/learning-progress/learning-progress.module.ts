@@ -7,5 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   providers: [LearningProgressService],
   controllers: [LearningProgressController],
+  exports: [LearningProgressService],
 })
 export class LearningProgressModule {}

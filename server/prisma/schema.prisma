@@ -58,6 +58,18 @@ enum EnrollmentStatus {
   SUSPENDED
 }
 
+enum GoalType {
+  COMPLETE_COURSE
+  MASTER_TOPICS
+  IMPROVE_TOPIC
+  COMPLETE_ASSESSMENTS
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+}
+
 enum ProgressStatus {
   NOT_STARTED
   IN_PROGRESS
@@ -71,6 +83,7 @@ enum ActivityType {
   RESOURCE_PAUSED
   RESOURCE_RESUMED
   RESOURCE_DOWNLOADED
+  AI_BLOCK_INTERACTION
 }
 
 model User {
@@ -102,6 +115,8 @@ model User {
   assessment_attempts AssessmentAttempt[]
   learning_progress   LearningProgress[]
   learning_activities LearningActivity[]
+  student_course_goals StudentCourseGoal[]
+  certificates        Certificate[]
 
   @@map("users")
 }
@@ -150,6 +165,8 @@ model Course {
   assessments         Assessment[]
   learning_progress   LearningProgress[]
   learning_activities LearningActivity[]
+  student_course_goals StudentCourseGoal[]
+  certificates        Certificate[]
 
   @@map("courses")
 }
@@ -175,6 +192,7 @@ model Topic {
   learning_progress        LearningProgress[]
   learning_activities      LearningActivity[]
   ai_lessons               TopicAILesson[]
+  targeted_goals           StudentCourseGoal[]
 
   @@map("topics")
 }
@@ -528,7 +546,7 @@ model LearningActivity {
   student_id    Int
   course_id     Int
   topic_id      Int
-  resource_id   Int
+  resource_id   Int?
   activity_type ActivityType
   metadata      Json?
   created_at    DateTime     @default(now()) @db.Timestamp(6)
@@ -536,7 +554,7 @@ model LearningActivity {
   student  User     @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
   course   Course   @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
   topic    Topic    @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
-  resource Resource @relation(fields: [resource_id], references: [resource_id], onDelete: Cascade)
+  resource Resource? @relation(fields: [resource_id], references: [resource_id], onDelete: Cascade)
 
   @@map("learning_activities")
 }
@@ -555,4 +573,39 @@ model TopicAILesson {
 
   @@unique([topic_id, proficiency_level, teaching_preference])
   @@map("topic_ai_lessons")
+}
+
+model StudentCourseGoal {
+  goal_id          Int               @id @default(autoincrement())
+  student_id       Int
+  course_id        Int
+  goal_type        GoalType
+  target_value     Int?
+  target_topic_id  Int?
+  target_proficiency ProficiencyLevel?
+  status           GoalStatus        @default(ACTIVE)
+  created_at       DateTime          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime          @updatedAt @db.Timestamp(6)
+
+  student          User              @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
+  course           Course            @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  target_topic     Topic?            @relation(fields: [target_topic_id], references: [topic_id], onDelete: SetNull)
+
+  @@map("student_course_goals")
+}
+
+model Certificate {
+  certificate_id   Int      @id @default(autoincrement())
+  credential_id    String   @unique @default(uuid())
+  student_id       Int
+  course_id        Int
+  issued_at        DateTime @default(now()) @db.Timestamp(6)
+  grade_percentage Decimal? @db.Decimal(5, 2)
+  certificate_url  String?  @db.VarChar(500)
+
+  student          User     @relation(fields: [student_id], references: [user_id], onDelete: Cascade)
+  course           Course   @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+
+  @@unique([student_id, course_id])
+  @@map("certificates")
 }

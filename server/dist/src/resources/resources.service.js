@@ -146,6 +146,9 @@ let ResourcesService = class ResourcesService {
                         headers: formData.getHeaders(),
                     });
                     console.log(`Successfully ingested resource ${newResource.resource_id} to RAG`);
+                    await this.prisma.topicAILesson.deleteMany({
+                        where: { topic_id: topicId },
+                    });
                 }
             }
             catch (err) {
@@ -179,6 +182,11 @@ let ResourcesService = class ResourcesService {
             where: { resource_id: id },
             data: dataToUpdate,
         });
+        if (existing.is_ai_source !== updated.is_ai_source) {
+            await this.prisma.topicAILesson.deleteMany({
+                where: { topic_id: existing.topic_id },
+            });
+        }
         if (existing.is_ai_source && dataToUpdate.is_ai_source === false) {
             try {
                 await axios_1.default.delete(`http://localhost:8000/api/documents/${id}`);
@@ -199,6 +207,9 @@ let ResourcesService = class ResourcesService {
             await this.deleteFromS3(resource.thumbnail_key);
         }
         if (resource.is_ai_source) {
+            await this.prisma.topicAILesson.deleteMany({
+                where: { topic_id: resource.topic_id },
+            });
             try {
                 await axios_1.default.delete(`http://localhost:8000/api/documents/${id}`);
             }

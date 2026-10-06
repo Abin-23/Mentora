@@ -13,6 +13,7 @@ exports.UpdateProfileDto = exports.IsInternationalPhoneNumberConstraint = void 0
 exports.IsInternationalPhoneNumber = IsInternationalPhoneNumber;
 const class_validator_1 = require("class-validator");
 const libphonenumber_js_1 = require("libphonenumber-js");
+const client_1 = require("@prisma/client");
 let IsInternationalPhoneNumberConstraint = class IsInternationalPhoneNumberConstraint {
     validate(phone) {
         try {
@@ -44,6 +45,7 @@ function IsInternationalPhoneNumber(validationOptions) {
 class UpdateProfileDto {
     full_name;
     phone;
+    teaching_preference;
 }
 exports.UpdateProfileDto = UpdateProfileDto;
 __decorate([
@@ -62,4 +64,9 @@ __decorate([
     (0, class_validator_1.MaxLength)(20),
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.TeachingPreference),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "teaching_preference", void 0);
 //# sourceMappingURL=update-profile.dto.js.map

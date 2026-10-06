@@ -9,7 +9,8 @@ export default function Profile() {
   const user = useAuthUser();
   
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string>('');
+  const [teachingPreference, setTeachingPreference] = useState<string>('DIRECT');
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -31,6 +32,7 @@ export default function Profile() {
     if (user) {
       setFullName(user.full_name || '');
       setPhone(user.phone || '');
+      setTeachingPreference((user as any).teaching_preference || 'DIRECT');
     }
   }, [user]);
 
@@ -54,7 +56,11 @@ export default function Profile() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ full_name: fullName, phone })
+        body: JSON.stringify({
+          full_name: fullName,
+          phone: phone || undefined,
+          teaching_preference: teachingPreference
+        })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -275,7 +281,7 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-6">
                 <button 
                   type="submit" 
                   disabled={loading}
@@ -286,6 +292,59 @@ export default function Profile() {
               </div>
             </form>
           </div>
+
+          {/* Teaching Preferences Form */}
+          {user.role === 'Student' && (
+            <div className="bg-white rounded-[32px] p-8 shadow-lg shadow-black/5 border border-black/5">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-accent-neon/30 flex items-center justify-center text-primary">
+                  <span className="material-symbols-outlined">school</span>
+                </div>
+                <h3 className="font-headline-md text-xl font-bold">Learning Preferences</h3>
+              </div>
+              <p className="font-body-md text-sm text-text-secondary mb-6">
+                How would you like Mentora to explain concepts in the personalized AI lessons?
+              </p>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {[
+                  { value: 'DIRECT', label: 'Direct & concise', desc: 'Short, concise, point-by-point explanations.' },
+                  { value: 'DETAILED', label: 'Detailed explanations', desc: 'More thorough explanations with additional context.' },
+                  { value: 'EXAMPLE_FIRST', label: 'Examples first', desc: 'Start with a practical example, then explain the concept.' },
+                  { value: 'STEP_BY_STEP', label: 'Step-by-step', desc: 'Teach the concept progressively in small steps.' },
+                  { value: 'ANALOGY_BASED', label: 'Real-world analogies', desc: 'Use simple real-world analogies where appropriate.' },
+                  { value: 'SCENARIO_BASED', label: 'Practical scenarios', desc: 'Explain concepts through practical situations.' },
+                  { value: 'PRACTICE_FIRST', label: 'Practice first', desc: 'Give a brief explanation and focus on guided practice.' },
+                ].map((pref) => (
+                  <label key={pref.value} className={`flex items-start p-4 rounded-2xl border cursor-pointer transition-colors ${teachingPreference === pref.value ? 'border-primary bg-primary/5' : 'border-outline-variant/60 hover:bg-surface-container-lowest'}`}>
+                    <div className="flex items-center h-5">
+                      <input
+                        type="radio"
+                        name="teachingPreference"
+                        value={pref.value}
+                        checked={teachingPreference === pref.value}
+                        onChange={(e) => setTeachingPreference(e.target.value)}
+                        className="w-4 h-4 text-primary bg-white border-outline-variant focus:ring-primary focus:ring-2"
+                      />
+                    </div>
+                    <div className="ml-3 text-sm">
+                      <span className={`font-bold ${teachingPreference === pref.value ? 'text-primary' : 'text-on-surface'}`}>{pref.label}</span>
+                      <p className="text-text-secondary mt-1">{pref.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end mt-6">
+                <button 
+                  onClick={handleProfileUpdate}
+                  disabled={loading}
+                  className="bg-primary text-white font-label-mono text-sm px-6 py-3 rounded-full hover:scale-95 transition-transform cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Preferences'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Security Form (Only if provider is local) */}
           {user.provider === 'local' && (

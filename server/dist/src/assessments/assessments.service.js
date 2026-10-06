@@ -114,6 +114,18 @@ let AssessmentsService = class AssessmentsService {
         });
         return assessment;
     }
+    async getCurrentAttempt(assessmentId, studentId) {
+        const attempt = await this.prisma.assessmentAttempt.findFirst({
+            where: { assessment_id: assessmentId, student_id: studentId, status: 'IN_PROGRESS' },
+            orderBy: { attempt_number: 'desc' },
+            include: { security_events: true }
+        });
+        if (!attempt)
+            return null;
+        const violationTypes = ['TAB_SWITCH', 'WINDOW_FOCUS_LOSS', 'FULLSCREEN_EXIT', 'FACE_NOT_DETECTED', 'MULTIPLE_FACES', 'CAMERA_DISCONNECTED', 'MICROPHONE_DISCONNECTED'];
+        const warningCount = attempt.security_events.filter(e => violationTypes.includes(e.event_type)).length;
+        return { ...attempt, warningCount };
+    }
     async startAttempt(assessmentId, studentId) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { assessment_id: assessmentId },
@@ -179,6 +191,10 @@ let AssessmentsService = class AssessmentsService {
             where: { attempt_id: attemptId, question_id: questionId },
         });
         if (existing) {
+            const assessment = await this.prisma.assessment.findUnique({ where: { assessment_id: attempt.assessment_id } });
+            if (assessment && assessment.is_system_generated && assessment.assessment_type === 'TOPIC') {
+                throw new common_1.BadRequestException('Cannot change answers in an adaptive assessment once submitted');
+            }
             return this.prisma.studentAnswer.update({
                 where: { answer_id: existing.answer_id },
                 data: {
@@ -198,19 +214,58 @@ let AssessmentsService = class AssessmentsService {
         });
     }
     async logSecurityEvent(attemptId, studentId, eventType, severity, metadata) {
-        const attempt = await this.prisma.assessmentAttempt.findUnique({
-            where: { attempt_id: attemptId },
-        });
-        if (!attempt || attempt.student_id !== studentId) {
-            throw new common_1.ForbiddenException('Access denied');
-        }
-        return this.prisma.assessmentSecurityEvent.create({
-            data: {
-                attempt_id: attemptId,
-                event_type: eventType,
-                severity: severity,
-                event_metadata: metadata || {},
-            },
+        return this.prisma.$transaction(async (tx) => {
+            const attempt = await tx.assessmentAttempt.findUnique({
+                where: { attempt_id: attemptId },
+            });
+            if (!attempt || attempt.student_id !== studentId) {
+                throw new common_1.ForbiddenException('Access denied');
+            }
+            const violationTypes = [
+                'TAB_SWITCH',
+                'WINDOW_FOCUS_LOSS',
+                'FULLSCREEN_EXIT',
+                'FACE_NOT_DETECTED',
+                'MULTIPLE_FACES',
+                'CAMERA_DISCONNECTED',
+                'MICROPHONE_DISCONNECTED',
+                'AUDIO_ACTIVITY',
+                'CELL_PHONE_DETECTED',
+                'SUSPICIOUS_GAZE'
+            ];
+            let existingWarningCount = 0;
+            if (violationTypes.includes(eventType)) {
+                existingWarningCount = await tx.assessmentSecurityEvent.count({
+                    where: {
+                        attempt_id: attemptId,
+                        event_type: { in: violationTypes }
+                    }
+                });
+            }
+            const warningNumber = violationTypes.includes(eventType) ? existingWarningCount + 1 : 0;
+            const terminated = warningNumber >= 3;
+            const event = await tx.assessmentSecurityEvent.create({
+                data: {
+                    attempt_id: attemptId,
+                    event_type: eventType,
+                    severity: severity,
+                    event_metadata: {
+                        ...(metadata || {}),
+                        ...(warningNumber > 0 ? { warningNumber } : {})
+                    },
+                },
+            });
+            if (terminated) {
+                await tx.assessmentAttempt.update({
+                    where: { attempt_id: attemptId },
+                    data: { status: 'CANCELLED' }
+                });
+            }
+            return {
+                warningCount: warningNumber,
+                event,
+                terminated
+            };
         });
     }
     async getAssessmentProfileForStudent(assessmentId, studentId) {
@@ -251,7 +306,11 @@ let AssessmentsService = class AssessmentsService {
                 assessment: {
                     include: {
                         questions: {
-                            include: { question: true }
+                            include: {
+                                question: {
+                                    include: { topic: true }
+                                }
+                            }
                         }
                     }
                 }
@@ -380,10 +439,43 @@ let AssessmentsService = class AssessmentsService {
                 percentage: percentage,
             },
         });
-        this.syncStudentKnowledgeToNeo4j(studentId, topicScores).catch(e => {
-            console.error('Failed to sync student knowledge to Neo4j async', e);
-        });
-        return updatedAttempt;
+        let neo4jSyncSuccess = false;
+        try {
+            await this.syncStudentKnowledgeToNeo4j(studentId, topicScores);
+            neo4jSyncSuccess = true;
+        }
+        catch (e) {
+            console.error('Failed to sync student knowledge to Neo4j', e);
+            neo4jSyncSuccess = false;
+        }
+        const strengths = [];
+        const weaknesses = [];
+        for (const [topicId, stats] of Object.entries(topicScores)) {
+            const topicPerc = stats.max > 0 ? (stats.marks / stats.max) * 100 : 0;
+            const topicName = attempt.assessment.questions.find(q => q.question.topic_id === Number(topicId))?.question.topic?.topic_title || `Topic ${topicId}`;
+            const topicResult = {
+                topic_id: Number(topicId),
+                title: topicName,
+                percentage: Math.round(topicPerc),
+                proficiency: topicPerc >= 70 ? (topicPerc >= 85 ? 'ADVANCED' : 'PROFICIENT') : (topicPerc >= 40 ? 'DEVELOPING' : 'BEGINNER')
+            };
+            if (topicPerc >= 70) {
+                strengths.push(topicResult);
+            }
+            else {
+                weaknesses.push(topicResult);
+            }
+        }
+        return {
+            attempt: updatedAttempt,
+            analysis: {
+                overallScore: percentage,
+                neo4jSyncSuccess,
+                topicPerformance: Object.values(topicScores),
+                strengths,
+                weaknesses
+            }
+        };
     }
     async syncStudentKnowledgeToNeo4j(studentId, topicScores) {
         if (!this.neo4jService.isDatabaseConnected()) {
@@ -407,9 +499,10 @@ let AssessmentsService = class AssessmentsService {
           MATCH (t:Topic {topicId: toInteger($topicId)})
           MERGE (s)-[k:KNOWLEDGE_STATE]->(t)
           ON CREATE SET k.attemptCount = 1
-          ON MATCH SET k.attemptCount = k.attemptCount + 1
+          ON MATCH SET k.attemptCount = coalesce(k.attemptCount, 0) + 1
           SET k.score = $score,
               k.proficiency = $proficiency,
+              k.confidence = 0.9,
               k.source = $source,
               k.lastAssessmentAt = datetime(),
               k.updatedAt = datetime()
@@ -422,9 +515,11 @@ let AssessmentsService = class AssessmentsService {
                 });
             }
             console.log(`Successfully synced Knowledge State for Student #${studentId} to Neo4j`);
+            return true;
         }
         catch (error) {
             console.error('Error syncing student knowledge to Neo4j:', error);
+            throw error;
         }
     }
 };

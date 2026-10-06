@@ -370,8 +370,7 @@ export default function ManageTopicResources() {
                   </span>
                   {r.is_ai_source && (
                     <span className="px-2 py-0.5 bg-secondary/10 text-secondary rounded text-[9px] font-bold uppercase tracking-widest border border-secondary/20 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[10px]">smart_toy</span>
-                      AI Source
+                      🤖 AI Knowledge Source
                     </span>
                   )}
                   {r.file_size ? (
@@ -508,11 +507,10 @@ export default function ManageTopicResources() {
                     />
                     <div>
                       <label htmlFor="isAiSource" className={`font-bold text-sm ${formData.resource_type === 'PDF' ? 'text-secondary' : 'text-text-secondary'} cursor-pointer select-none flex items-center gap-1`}>
-                        <span className="material-symbols-outlined text-[16px]">smart_toy</span>
                         Use as AI Knowledge Source
                       </label>
                       <p className="text-xs text-text-secondary mt-1 max-w-[90%]">
-                        Only enable this for verified PDF course materials suitable for generating AI learning content.
+                        Only approved AI Knowledge Sources are used by Mentora to generate AI learning content.
                       </p>
                     </div>
                   </div>

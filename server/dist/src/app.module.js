@@ -24,6 +24,8 @@ const assessments_module_1 = require("./assessments/assessments.module");
 const neo4j_module_1 = require("./neo4j/neo4j.module");
 const adaptive_learning_module_1 = require("./adaptive-learning/adaptive-learning.module");
 const learning_progress_module_1 = require("./learning-progress/learning-progress.module");
+const visual_resources_module_1 = require("./visual-resources/visual-resources.module");
+const certificates_module_1 = require("./certificates/certificates.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -44,6 +46,8 @@ exports.AppModule = AppModule = __decorate([
             neo4j_module_1.Neo4jModule,
             adaptive_learning_module_1.AdaptiveLearningModule,
             learning_progress_module_1.LearningProgressModule,
+            visual_resources_module_1.VisualResourcesModule,
+            certificates_module_1.CertificatesModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

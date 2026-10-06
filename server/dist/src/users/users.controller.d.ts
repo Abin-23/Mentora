@@ -18,6 +18,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
     updateProfile(req: any, updateDto: UpdateProfileDto): Promise<{
         status: import(".prisma/client").$Enums.Status;
@@ -30,6 +31,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
     changePassword(req: any, dto: ChangePasswordDto): Promise<{
         message: string;
@@ -45,6 +47,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
     removeProfilePicture(req: any): Promise<{
         status: import(".prisma/client").$Enums.Status;
@@ -57,6 +60,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
     getAllUsers(role?: Role): Promise<{
         status: import(".prisma/client").$Enums.Status;
@@ -69,6 +73,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }[]>;
     updateUserStatus(id: number, dto: UpdateStatusDto): Promise<{
         status: import(".prisma/client").$Enums.Status;
@@ -81,6 +86,7 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
     createCourseAdmin(dto: CreateAdminDto): Promise<{
         status: import(".prisma/client").$Enums.Status;
@@ -93,5 +99,6 @@ export declare class UsersController {
         profile_image: string | null;
         provider: string | null;
         provider_id: string | null;
+        teaching_preference: import(".prisma/client").$Enums.TeachingPreference;
     }>;
 }

@@ -13,12 +13,14 @@ const adaptive_learning_service_1 = require("./adaptive-learning.service");
 const neo4j_module_1 = require("../neo4j/neo4j.module");
 const prisma_module_1 = require("../prisma/prisma.module");
 const resources_module_1 = require("../resources/resources.module");
+const learning_progress_module_1 = require("../learning-progress/learning-progress.module");
+const visual_resources_module_1 = require("../visual-resources/visual-resources.module");
 let AdaptiveLearningModule = class AdaptiveLearningModule {
 };
 exports.AdaptiveLearningModule = AdaptiveLearningModule;
 exports.AdaptiveLearningModule = AdaptiveLearningModule = __decorate([
     (0, common_1.Module)({
-        imports: [neo4j_module_1.Neo4jModule, prisma_module_1.PrismaModule, resources_module_1.ResourcesModule],
+        imports: [neo4j_module_1.Neo4jModule, prisma_module_1.PrismaModule, resources_module_1.ResourcesModule, learning_progress_module_1.LearningProgressModule, visual_resources_module_1.VisualResourcesModule],
         controllers: [adaptive_learning_controller_1.AdaptiveLearningController],
         providers: [adaptive_learning_service_1.AdaptiveLearningService],
         exports: [adaptive_learning_service_1.AdaptiveLearningService],

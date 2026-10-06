@@ -1,13 +1,52 @@
-import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, UseGuards, Req, Query } from '@nestjs/common';
 import { LearningProgressService } from './learning-progress.service';
 import { StartProgressDto } from './dto/start-progress.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { AuthGuard } from '@nestjs/passport';
 
+import { LogBlockInteractionDto } from './dto/log-block-interaction.dto';
+
 @UseGuards(AuthGuard('jwt'))
 @Controller('learning-progress')
 export class LearningProgressController {
   constructor(private readonly learningProgressService: LearningProgressService) {}
+
+  @Post('block-interaction')
+  logBlockInteraction(@Req() req: any, @Body() dto: LogBlockInteractionDto) {
+    return this.learningProgressService.logBlockInteraction(req.user.user_id, dto);
+  }
+
+  @Get('ai-journey')
+  getAIJourneyState(
+    @Req() req: any,
+    @Query('courseId', ParseIntPipe) courseId: number,
+    @Query('topicId', ParseIntPipe) topicId: number
+  ) {
+    return this.learningProgressService.getAIJourneyState(req.user.user_id, courseId, topicId);
+  }
+
+  @Post('ai-journey')
+  saveAIJourneyState(
+    @Req() req: any,
+    @Query('courseId', ParseIntPipe) courseId: number,
+    @Query('topicId', ParseIntPipe) topicId: number,
+    @Body() state: any
+  ) {
+    return this.learningProgressService.saveAIJourneyState(req.user.user_id, courseId, topicId, state);
+  }
+
+  @Get('concept-performance')
+  getConceptPerformance(
+    @Req() req: any,
+    @Query('courseId') courseId?: string,
+    @Query('topicId') topicId?: string
+  ) {
+    return this.learningProgressService.getConceptPerformance(
+      req.user.user_id,
+      courseId ? parseInt(courseId, 10) : undefined,
+      topicId ? parseInt(topicId, 10) : undefined
+    );
+  }
 
   @Post('start')
   startProgress(@Req() req: any, @Body() dto: StartProgressDto) {

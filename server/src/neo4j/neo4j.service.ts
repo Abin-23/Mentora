@@ -56,8 +56,8 @@ export class Neo4jService implements OnApplicationBootstrap, OnApplicationShutdo
    * Executes a write query (e.g., CREATE, MERGE, SET, DELETE)
    */
   async write(cypher: string, params?: Record<string, any>) {
-    if (!this.driver || !this.isConnected) {
-      throw new Error('Neo4j is not connected');
+    if (!this.driver) {
+      throw new Error('Neo4j driver is not initialized');
     }
     
     const session = this.driver.session({ 
@@ -77,8 +77,8 @@ export class Neo4jService implements OnApplicationBootstrap, OnApplicationShutdo
    * Executes a read-only query (e.g., MATCH, RETURN)
    */
   async read(cypher: string, params?: Record<string, any>) {
-    if (!this.driver || !this.isConnected) {
-      throw new Error('Neo4j is not connected');
+    if (!this.driver) {
+      throw new Error('Neo4j driver is not initialized');
     }
 
     const session = this.driver.session({ 

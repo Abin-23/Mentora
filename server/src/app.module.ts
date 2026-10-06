@@ -15,6 +15,8 @@ import { AssessmentsModule } from './assessments/assessments.module';
 import { Neo4jModule } from './neo4j/neo4j.module';
 import { AdaptiveLearningModule } from './adaptive-learning/adaptive-learning.module';
 import { LearningProgressModule } from './learning-progress/learning-progress.module';
+import { VisualResourcesModule } from './visual-resources/visual-resources.module';
+import { CertificatesModule } from './certificates/certificates.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { LearningProgressModule } from './learning-progress/learning-progress.mo
     Neo4jModule,
     AdaptiveLearningModule,
     LearningProgressModule,
+    VisualResourcesModule,
+    CertificatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

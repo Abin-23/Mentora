@@ -19,6 +19,7 @@ exports.LearningProgressModule = LearningProgressModule = __decorate([
         imports: [prisma_module_1.PrismaModule],
         providers: [learning_progress_service_1.LearningProgressService],
         controllers: [learning_progress_controller_1.LearningProgressController],
+        exports: [learning_progress_service_1.LearningProgressService],
     })
 ], LearningProgressModule);
 //# sourceMappingURL=learning-progress.module.js.map
