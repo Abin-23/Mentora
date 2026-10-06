@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 interface PaymentModalProps {
   courseTitle: string;
@@ -20,9 +20,6 @@ const PAYMENT_METHODS = [
 export default function PaymentModal({ courseTitle, price, thumbnailKey, difficultyLevel, onClose, onProceed, isProcessing }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<string>('netbanking');
   const [paymentStep, setPaymentStep] = useState<'select_method' | 'enter_card'>('select_method');
-
-  // Remove restrictions since we will handle them custom now
-  const isRestricted = false;
 
   const handleProceed = () => {
     if (selectedMethod === 'card' && paymentStep === 'select_method') {

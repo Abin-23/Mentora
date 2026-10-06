@@ -42,16 +42,6 @@ interface CoursePlayerContent {
 
 const LEARNING_STAGES = ['Learn', 'Understand', 'Try', 'Practice', 'Check', 'Master'];
 
-const getJourneyState = (proficiency: string) => {
-  switch(proficiency?.toUpperCase()) {
-    case 'DEVELOPING': return { index: 2, label: 'Applying Concepts' };
-    case 'PROFICIENT': return { index: 4, label: 'Testing Knowledge' };
-    case 'ADVANCED': return { index: 5, label: 'Mastery Achieved' };
-    case 'BEGINNER':
-    default: return { index: 0, label: 'Building Foundations' };
-  }
-};
-
 export default function CoursePlayer() {
   const user = useAuthUser();
   const { courseSlug } = useParams();
