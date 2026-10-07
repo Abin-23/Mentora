@@ -142,7 +142,7 @@ let ResourcesService = class ResourcesService {
                     formData.append('topic_id', topicId.toString());
                     formData.append('resource_id', newResource.resource_id.toString());
                     formData.append('resource_name', newResource.resource_title);
-                    await axios_1.default.post('http://localhost:8000/api/ingest/pdf', formData, {
+                    await axios_1.default.post(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/ingest/pdf`, formData, {
                         headers: formData.getHeaders(),
                     });
                     console.log(`Successfully ingested resource ${newResource.resource_id} to RAG`);
@@ -189,7 +189,7 @@ let ResourcesService = class ResourcesService {
         }
         if (existing.is_ai_source && dataToUpdate.is_ai_source === false) {
             try {
-                await axios_1.default.delete(`http://localhost:8000/api/documents/${id}`);
+                await axios_1.default.delete(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/documents/${id}`);
                 console.log(`Deleted resource ${id} from RAG`);
             }
             catch (err) {
@@ -211,7 +211,7 @@ let ResourcesService = class ResourcesService {
                 where: { topic_id: resource.topic_id },
             });
             try {
-                await axios_1.default.delete(`http://localhost:8000/api/documents/${id}`);
+                await axios_1.default.delete(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/documents/${id}`);
             }
             catch (err) {
                 console.error('Failed to delete resource from RAG service:', err);

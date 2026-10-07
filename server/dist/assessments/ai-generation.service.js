@@ -76,7 +76,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                         difficulty: 'EASY',
                         valid_resource_ids: validResourceIds
                     };
-                    const res = await fetch('http://localhost:8000/api/generate_assessment', {
+                    const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
@@ -281,7 +281,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 600000);
                 try {
-                    const res = await fetch('http://localhost:8000/api/generate_assessment', {
+                    const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
@@ -447,7 +447,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 600000);
                 try {
-                    const res = await fetch('http://localhost:8000/api/generate_assessment', {
+                    const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
