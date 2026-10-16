@@ -3,7 +3,7 @@ import { Neo4jService } from '../neo4j/neo4j.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResourcesService } from '../resources/resources.service';
 import { LearningProgressService } from '../learning-progress/learning-progress.service';
-import { AdaptiveLearningEngine, KnowledgeState, TopicData } from './engine';
+import { AdaptiveLearningEngine, KnowledgeState, TopicData, RecommendedTopic } from './engine';
 import { GeneratePathDto } from './dto/adaptive-learning.dto';
 import neo4j from 'neo4j-driver';
 
@@ -34,75 +34,103 @@ export class AdaptiveLearningService {
   async generatePath(studentId: number, courseId: number, dto?: GeneratePathDto) {
     const limit = dto?.limit || 5;
 
-    // 1. Fetch Topics
-    const topicsResult = await this.neo4jService.read(
-      `
-      MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t:Topic)
-      RETURN t.topicId AS topicId, t.title AS title, t.sequenceNumber AS sequenceNumber, t.difficulty AS difficulty
-      ORDER BY t.sequenceNumber
-      `,
-      { courseId: neo4j.int(courseId) }
-    );
-    const topics: TopicData[] = topicsResult.records.map((rec) => ({
-      topicId: toNumberSafe(rec.get('topicId')),
-      title: rec.get('title'),
-      sequenceNumber: toNumberSafe(rec.get('sequenceNumber')),
-      difficulty: rec.get('difficulty'),
-    }));
-
-    if (topics.length === 0) {
-      throw new NotFoundException(`No topics found for course ${courseId}`);
-    }
-
-    // 2. Fetch Prerequisites
-    const prereqResult = await this.neo4jService.read(
-      `
-      MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t1:Topic)
-      MATCH (t1)-[:PREREQUISITE_FOR]->(t2:Topic)<-[:HAS_TOPIC]-(c)
-      RETURN t1.topicId AS prereqId, t2.topicId AS topicId
-      `,
-      { courseId: neo4j.int(courseId) }
-    );
-    
-    const prerequisites = new Map<number, number[]>();
-    prereqResult.records.forEach((rec) => {
-      const pId = toNumberSafe(rec.get('prereqId'));
-      const tId = toNumberSafe(rec.get('topicId'));
-      if (!prerequisites.has(tId)) prerequisites.set(tId, []);
-      prerequisites.get(tId)!.push(pId);
-    });
-
-    // 3. Fetch Student Knowledge State
-    const stateResult = await this.neo4jService.read(
-      `
-      MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic)<-[:HAS_TOPIC]-(c:Course {courseId: toInteger($courseId)})
-      RETURN t.topicId AS topicId, k.score AS score, k.proficiency AS proficiency
-      `,
-      { studentId: neo4j.int(studentId), courseId: neo4j.int(courseId) }
-    );
-    
+    let recommendedTopics: RecommendedTopic[] = [];
     const knowledgeStates = new Map<number, KnowledgeState>();
-    stateResult.records.forEach((rec) => {
-      knowledgeStates.set(toNumberSafe(rec.get('topicId')), {
-        score: rec.get('score'),
-        proficiency: rec.get('proficiency'),
-      });
-    });
 
-    // 4. Generate Path using Engine
-    const recommendedTopics = AdaptiveLearningEngine.generatePath(
-      topics,
-      knowledgeStates,
-      prerequisites,
-      limit
-    );
+    try {
+      // 1. Fetch Topics
+      const topicsResult = await this.neo4jService.read(
+        `
+        MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t:Topic)
+        RETURN t.topicId AS topicId, t.title AS title, t.sequenceNumber AS sequenceNumber, t.difficulty AS difficulty
+        ORDER BY t.sequenceNumber
+        `,
+        { courseId: neo4j.int(courseId) }
+      );
+      const topics: TopicData[] = topicsResult.records.map((rec) => ({
+        topicId: toNumberSafe(rec.get('topicId')),
+        title: rec.get('title'),
+        sequenceNumber: toNumberSafe(rec.get('sequenceNumber')),
+        difficulty: rec.get('difficulty'),
+      }));
 
-    console.log(`Adaptive Engine Debug:
+      if (topics.length > 0) {
+        // 2. Fetch Prerequisites
+        const prereqResult = await this.neo4jService.read(
+          `
+          MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t1:Topic)
+          MATCH (t1)-[:PREREQUISITE_FOR]->(t2:Topic)<-[:HAS_TOPIC]-(c)
+          RETURN t1.topicId AS prereqId, t2.topicId AS topicId
+          `,
+          { courseId: neo4j.int(courseId) }
+        );
+        
+        const prerequisites = new Map<number, number[]>();
+        prereqResult.records.forEach((rec) => {
+          const pId = toNumberSafe(rec.get('prereqId'));
+          const tId = toNumberSafe(rec.get('topicId'));
+          if (!prerequisites.has(tId)) prerequisites.set(tId, []);
+          prerequisites.get(tId)!.push(pId);
+        });
+
+        const stateResult = await this.neo4jService.read(
+          `
+          MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic)<-[:HAS_TOPIC]-(c:Course {courseId: toInteger($courseId)})
+          RETURN t.topicId AS topicId, k.score AS score, k.proficiency AS proficiency
+          `,
+          { studentId: neo4j.int(studentId), courseId: neo4j.int(courseId) }
+        );
+        
+        stateResult.records.forEach((rec) => {
+          knowledgeStates.set(toNumberSafe(rec.get('topicId')), {
+            score: rec.get('score'),
+            proficiency: rec.get('proficiency'),
+          });
+        });
+
+        // 4. Generate Path using Engine
+        recommendedTopics = AdaptiveLearningEngine.generatePath(
+          topics,
+          knowledgeStates,
+          prerequisites,
+          limit
+        );
+
+        console.log(`Adaptive Engine Debug:
 Course: ${courseId}, Student: ${studentId}
 Total Topics fetched: ${topics.length}
 Knowledge States Count: ${knowledgeStates.size}
 Prerequisites Count: ${prerequisites.size}
 Recommended Topics Count: ${recommendedTopics.length}`);
+      }
+    } catch (neoErr: any) {
+      console.warn(`Neo4j unavailable for adaptive path generation: ${neoErr.message}. Falling back to PostgreSQL course structure.`);
+    }
+
+    // Fallback if Neo4j is offline or returned no topics
+    if (!recommendedTopics || recommendedTopics.length === 0) {
+      const dbTopics = await this.prisma.topic.findMany({
+        where: { course_id: courseId },
+        orderBy: { sequence_number: 'asc' },
+        take: limit,
+      });
+
+      if (dbTopics.length === 0) {
+        throw new NotFoundException(`No topics found for course ${courseId}`);
+      }
+
+      recommendedTopics = dbTopics.map((t, idx) => ({
+        topicId: t.topic_id,
+        title: t.topic_title,
+        sequenceNumber: t.sequence_number,
+        difficulty: t.difficulty_level || 'EASY',
+        reason: idx === 0 ? 'Next Recommended Topic' : 'Upcoming Topic',
+        extendedReason: 'Structured progression through course curriculum.',
+        knowledgeScore: 0,
+        proficiency: 'UNASSESSED',
+        priorityScore: 100 - idx,
+      }));
+    }
 
     // 5. Hydrate with PostgreSQL Resources
     const hydratedTopics = await Promise.all(
@@ -139,17 +167,21 @@ Recommended Topics Count: ${recommendedTopics.length}`);
 
   async generatePersonalizedLesson(studentId: number, courseId: number, topicId: number) {
     // 1. Fetch student's knowledge state for this topic
-    const stateResult = await this.neo4jService.read(
-      `
-      MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
-      RETURN k.proficiency AS proficiency
-      `,
-      { studentId: neo4j.int(studentId), topicId: neo4j.int(topicId) }
-    );
-    
     let proficiencyLevel = 'BEGINNER'; // Default
-    if (stateResult.records.length > 0) {
-      proficiencyLevel = stateResult.records[0].get('proficiency') || 'BEGINNER';
+    try {
+      const stateResult = await this.neo4jService.read(
+        `
+        MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
+        RETURN k.proficiency AS proficiency
+        `,
+        { studentId: neo4j.int(studentId), topicId: neo4j.int(topicId) }
+      );
+      
+      if (stateResult.records.length > 0) {
+        proficiencyLevel = stateResult.records[0].get('proficiency') || 'BEGINNER';
+      }
+    } catch (neoErr: any) {
+      console.warn(`Neo4j knowledge state lookup failed (using default BEGINNER): ${neoErr.message}`);
     }
 
     // 2. Fetch topic title and student teaching preference from postgres
