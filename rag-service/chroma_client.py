@@ -50,14 +50,18 @@ def query_chroma(query_embeddings, n_results=5, where_filter=None):
     )
     return results
 
-def delete_documents_by_resource_id(resource_id: str):
+def delete_documents_by_resource_id(resource_id):
     """
     Deletes all chunks associated with a specific resource_id from ChromaDB.
     """
     try:
         collection = get_or_create_collection()
-        # ChromaDB allows deleting based on metadata where filters
-        collection.delete(where={"resourceId": resource_id})
+        # ChromaDB matches exact types in metadata; try both int and str to be certain
+        for rid in [int(resource_id), str(resource_id)]:
+            try:
+                collection.delete(where={"resourceId": rid})
+            except Exception:
+                pass
         return True
     except Exception as e:
         print(f"Error deleting from ChromaDB: {e}")

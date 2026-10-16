@@ -27,6 +27,10 @@ export class AdaptiveLearningService {
     private readonly visualResourcesService: VisualResourcesService,
   ) {}
 
+  private get ragServiceUrl(): string {
+    return (process.env.RAG_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  }
+
   async generatePath(studentId: number, courseId: number, dto?: GeneratePathDto) {
     const limit = dto?.limit || 5;
 
@@ -211,7 +215,7 @@ Recommended Topics Count: ${recommendedTopics.length}`);
     let responseData;
     try {
       const axios = require('axios');
-      const response = await axios.post(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_lesson`, {
+      const response = await axios.post(`${this.ragServiceUrl}/api/generate_lesson`, {
         course_id: courseId,
         topic_id: topicId,
         topic_title: topic.topic_title,
@@ -765,7 +769,7 @@ Recommended Topics Count: ${recommendedTopics.length}`);
     // 6. Send to RAG
     let tutorResult: any;
     try {
-      const ragUrl = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+      const ragUrl = this.ragServiceUrl;
       const ragResponse = await fetch(`${ragUrl}/api/tutor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

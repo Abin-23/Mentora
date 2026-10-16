@@ -7,9 +7,26 @@ from pydantic import BaseModel
 
 from chunking import extract_text_from_pdf, chunk_document_text
 from ai_client import generate_embeddings_batch, generate_chat_response, generate_personalized_lesson, generate_assessment_questions, generate_tutor_response
+import re
 from chroma_client import add_documents_to_chroma, query_chroma, delete_documents_by_resource_id
 
 app = FastAPI(title="Mentora RAG Service")
+
+class NormalizePathMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if "//" in path:
+                scope["path"] = re.sub(r"/+", "/", path)
+            raw_path = scope.get("raw_path")
+            if raw_path and b"//" in raw_path:
+                scope["raw_path"] = re.sub(rb"/+", b"/", raw_path)
+        await self.app(scope, receive, send)
+
+app.add_middleware(NormalizePathMiddleware)
 
 # Configure CORS so the NestJS backend or frontend can call it
 app.add_middleware(
@@ -58,6 +75,11 @@ class IngestTextRequest(BaseModel):
     topic_id: int
     resource_id: int
     resource_name: str
+
+@app.get("/")
+@app.head("/")
+def root():
+    return {"status": "ok", "service": "Mentora RAG Service"}
 
 @app.get("/health")
 def health_check():
@@ -163,7 +185,7 @@ async def delete_document(resource_id: int):
     """
     Endpoint to delete a document and all its chunks from the RAG knowledge base.
     """
-    success = delete_documents_by_resource_id(str(resource_id))
+    success = delete_documents_by_resource_id(resource_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete document from ChromaDB")
     

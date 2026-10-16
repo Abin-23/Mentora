@@ -17,6 +17,10 @@ export class AiGenerationService {
     }
   }
 
+  private get ragServiceUrl(): string {
+    return (process.env.RAG_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  }
+
   async generateInitialAssessment(courseId: number) {
     if (!this.ai) {
       this.logger.error('Cannot generate initial assessment without GEMINI_API_KEY');
@@ -74,7 +78,7 @@ export class AiGenerationService {
             valid_resource_ids: validResourceIds
           };
 
-          const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
+          const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -321,7 +325,7 @@ export class AiGenerationService {
         const timeoutId = setTimeout(() => controller.abort(), 600000); // 10m timeout
 
         try {
-          const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
+          const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -528,7 +532,7 @@ export class AiGenerationService {
         const timeoutId = setTimeout(() => controller.abort(), 600000);
 
         try {
-          const res = await fetch(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_assessment`, {
+          const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
