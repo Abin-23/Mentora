@@ -42,6 +42,9 @@ let AdaptiveLearningService = class AdaptiveLearningService {
         this.learningProgressService = learningProgressService;
         this.visualResourcesService = visualResourcesService;
     }
+    get ragServiceUrl() {
+        return (process.env.RAG_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+    }
     async generatePath(studentId, courseId, dto) {
         const limit = dto?.limit || 5;
         const topicsResult = await this.neo4jService.read(`
@@ -173,7 +176,7 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         let responseData;
         try {
             const axios = require('axios');
-            const response = await axios.post(`${process.env.RAG_SERVICE_URL || 'http://localhost:8000'}/api/generate_lesson`, {
+            const response = await axios.post(`${this.ragServiceUrl}/api/generate_lesson`, {
                 course_id: courseId,
                 topic_id: topicId,
                 topic_title: topic.topic_title,
@@ -664,7 +667,7 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         catch (e) { }
         let tutorResult;
         try {
-            const ragUrl = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+            const ragUrl = this.ragServiceUrl;
             const ragResponse = await fetch(`${ragUrl}/api/tutor`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

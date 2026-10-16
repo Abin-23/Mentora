@@ -45,18 +45,18 @@ def generate_embeddings(text: str) -> list[float]:
     last_error = None
     for api_key in api_keys:
         genai.configure(api_key=api_key)
-        try:
-            result = genai.embed_content(
-                model="models/gemini-embedding-2",
-                content=text,
-                task_type="retrieval_document",
-                request_options={"timeout": 15}
-            )
-            return result['embedding']
-        except Exception as e:
-            last_error = e
-            print(f"Error generating embeddings with a key: {e}")
-            continue
+        for model_name in ["models/gemini-embedding-2", "models/text-embedding-004", "models/embedding-001"]:
+            try:
+                result = genai.embed_content(
+                    model=model_name,
+                    content=text,
+                    task_type="retrieval_document"
+                )
+                return result['embedding']
+            except Exception as e:
+                last_error = e
+                continue
+        print(f"Error generating embeddings with key: {last_error}")
             
     print(f"Failed to generate embeddings on all keys. Last error: {last_error}")
     raise last_error or Exception("Failed to generate embeddings")

@@ -12,27 +12,28 @@ export declare class AdaptiveLearningService {
     private readonly learningProgressService;
     private readonly visualResourcesService;
     constructor(neo4jService: Neo4jService, prisma: PrismaService, resourcesService: ResourcesService, learningProgressService: LearningProgressService, visualResourcesService: VisualResourcesService);
+    private get ragServiceUrl();
     generatePath(studentId: number, courseId: number, dto?: GeneratePathDto): Promise<{
         studentId: number;
         courseId: number;
         generatedAt: Date;
         recommendedTopics: {
             resources: {
-                resource_key: string;
-                resource_title: string;
-                description: string | null;
-                resource_type: import(".prisma/client").$Enums.ResourceType;
-                thumbnail_key: string | null;
-                file_size: bigint | null;
-                duration_seconds: number | null;
-                sequence_number: number;
-                is_preview: boolean;
-                is_ai_source: boolean;
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
+                description: string | null;
                 updated_at: Date;
-                resource_id: number;
+                thumbnail_key: string | null;
                 topic_id: number;
+                sequence_number: number;
+                resource_id: number;
+                resource_title: string;
+                resource_type: import(".prisma/client").$Enums.ResourceType;
+                resource_key: string;
+                file_size: bigint | null;
+                duration_seconds: number | null;
+                is_preview: boolean;
+                is_ai_source: boolean;
                 uploaded_by: number;
             }[];
             reason: string;
@@ -117,21 +118,21 @@ export declare class AdaptiveLearningService {
         }[];
         currentRecommendation: {
             resources: {
-                resource_key: string;
-                resource_title: string;
-                description: string | null;
-                resource_type: import(".prisma/client").$Enums.ResourceType;
-                thumbnail_key: string | null;
-                file_size: bigint | null;
-                duration_seconds: number | null;
-                sequence_number: number;
-                is_preview: boolean;
-                is_ai_source: boolean;
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
+                description: string | null;
                 updated_at: Date;
-                resource_id: number;
+                thumbnail_key: string | null;
                 topic_id: number;
+                sequence_number: number;
+                resource_id: number;
+                resource_title: string;
+                resource_type: import(".prisma/client").$Enums.ResourceType;
+                resource_key: string;
+                file_size: bigint | null;
+                duration_seconds: number | null;
+                is_preview: boolean;
+                is_ai_source: boolean;
                 uploaded_by: number;
             }[];
             reason: string;
@@ -153,17 +154,17 @@ export declare class AdaptiveLearningService {
         progressPercentage: number;
         isCompleted: boolean;
         target_topic: {
-            sequence_number: number;
             status: import(".prisma/client").$Enums.CourseStatus;
             created_at: Date;
             updated_at: Date;
-            topic_id: number;
-            course_id: number;
-            topic_title: string;
-            topic_description: string | null;
             learning_objectives: string;
             difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
+            course_id: number;
+            topic_id: number;
+            topic_title: string;
+            topic_description: string | null;
             estimated_duration: import("@prisma/client/runtime/library").Decimal | null;
+            sequence_number: number;
         } | null;
         status: import(".prisma/client").$Enums.GoalStatus;
         created_at: Date;
