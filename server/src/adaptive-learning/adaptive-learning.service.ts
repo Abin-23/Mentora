@@ -300,14 +300,25 @@ Recommended Topics Count: ${recommendedTopics.length}`);
       })();
 
       if (!isError) {
-        await this.prisma.topicAILesson.create({
-          data: {
+        await this.prisma.topicAILesson.upsert({
+          where: {
+            topic_id_proficiency_level_teaching_preference: {
+              topic_id: topicId,
+              proficiency_level: proficiencyLevel,
+              teaching_preference: teachingPreference,
+            },
+          },
+          update: {
+            content: lesson,
+            sources: sources,
+          },
+          create: {
             topic_id: topicId,
             proficiency_level: proficiencyLevel,
             teaching_preference: teachingPreference,
             content: lesson,
-            sources: sources
-          }
+            sources: sources,
+          },
         });
       } else {
         console.warn(`Lesson generation failed for topic ${topicId}, skipping cache.`);

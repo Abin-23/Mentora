@@ -32,6 +32,9 @@ let UsersController = class UsersController {
     getProfile(req) {
         return this.usersService.getProfile(req.user.user_id);
     }
+    getAdminStats(req) {
+        return this.usersService.getAdminStats(req.user);
+    }
     updateProfile(req, updateDto) {
         return this.usersService.updateProfile(req.user.user_id, updateDto);
     }
@@ -50,8 +53,9 @@ let UsersController = class UsersController {
     updateUserStatus(id, dto) {
         return this.usersService.updateUserStatus(id, dto);
     }
-    createCourseAdmin(dto) {
-        return this.usersService.createCourseAdmin(dto);
+    createCourseAdmin(dto, req) {
+        const origin = dto.frontendUrl || req.headers?.origin || (req.headers?.referer ? new URL(req.headers.referer).origin : undefined);
+        return this.usersService.createCourseAdmin(dto, origin);
     }
 };
 exports.UsersController = UsersController;
@@ -62,6 +66,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.Get)('admin/stats'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SystemAdmin, client_1.Role.CourseAdmin),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getAdminStats", null);
 __decorate([
     (0, common_1.Patch)('profile'),
     __param(0, (0, common_1.Req)()),
@@ -123,8 +135,9 @@ __decorate([
     (0, common_1.Post)('admin'),
     (0, roles_decorator_1.Roles)(client_1.Role.SystemAdmin),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_admin_dto_1.CreateAdminDto]),
+    __metadata("design:paramtypes", [create_admin_dto_1.CreateAdminDto, Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "createCourseAdmin", null);
 exports.UsersController = UsersController = __decorate([

@@ -89,8 +89,8 @@ export class AuthService {
     };
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    const { email } = forgotPasswordDto;
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto, originUrl?: string) {
+    const { email, frontendUrl } = forgotPasswordDto;
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
@@ -120,10 +120,12 @@ export class AuthService {
       });
 
       // Send the actual email
+      const targetFrontendUrl = frontendUrl || originUrl;
       await this.mailService.sendPasswordResetEmail(
         email,
         resetToken,
         resetTokenExpires.getTime(),
+        targetFrontendUrl,
       );
     }
 

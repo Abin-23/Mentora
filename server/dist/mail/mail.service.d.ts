@@ -1,7 +1,8 @@
 export declare class MailService {
-    private transporter;
     private readonly logger;
-    constructor();
-    sendPasswordResetEmail(to: string, token: string, expiresMs?: number): Promise<void>;
-    sendAdminWelcomeEmail(to: string, name: string, token: string, expiresMs: number): Promise<void>;
+    private getTransporter;
+    private resolveFrontendUrl;
+    private sendMailWithFallback;
+    sendPasswordResetEmail(to: string, token: string, expiresMs?: number, customFrontendUrl?: string): Promise<void>;
+    sendAdminWelcomeEmail(to: string, name: string, token: string, expiresMs: number, customFrontendUrl?: string): Promise<void>;
 }

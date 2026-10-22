@@ -38,13 +38,13 @@ export declare class LearningProgressController {
     startProgress(req: any, dto: StartProgressDto): Promise<{
         status: import(".prisma/client").$Enums.ProgressStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
+        completed_at: Date | null;
         topic_id: number;
         resource_id: number;
         student_id: number;
         started_at: Date;
-        completed_at: Date | null;
         progress_id: number;
         progress_percent: number;
         time_spent_seconds: number;
@@ -53,13 +53,13 @@ export declare class LearningProgressController {
     updateProgress(req: any, id: number, dto: UpdateProgressDto): Promise<{
         status: import(".prisma/client").$Enums.ProgressStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
+        completed_at: Date | null;
         topic_id: number;
         resource_id: number;
         student_id: number;
         started_at: Date;
-        completed_at: Date | null;
         progress_id: number;
         progress_percent: number;
         time_spent_seconds: number;
@@ -68,13 +68,13 @@ export declare class LearningProgressController {
     completeProgress(req: any, id: number): Promise<{
         status: import(".prisma/client").$Enums.ProgressStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
+        completed_at: Date | null;
         topic_id: number;
         resource_id: number;
         student_id: number;
         started_at: Date;
-        completed_at: Date | null;
         progress_id: number;
         progress_percent: number;
         time_spent_seconds: number;
@@ -85,13 +85,13 @@ export declare class LearningProgressController {
     getProgressByTopicResources(req: any, topicId: number): Promise<{
         status: import(".prisma/client").$Enums.ProgressStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
+        completed_at: Date | null;
         topic_id: number;
         resource_id: number;
         student_id: number;
         started_at: Date;
-        completed_at: Date | null;
         progress_id: number;
         progress_percent: number;
         time_spent_seconds: number;

@@ -8,10 +8,10 @@ export declare class TopicsService {
     create(courseId: number, createTopicDto: CreateTopicDto): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        updated_at: Date;
+        course_id: number;
         learning_objectives: string;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-        course_id: number;
+        updated_at: Date;
         topic_id: number;
         topic_title: string;
         topic_description: string | null;
@@ -21,10 +21,10 @@ export declare class TopicsService {
     findAllByCourse(courseId: number): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        updated_at: Date;
+        course_id: number;
         learning_objectives: string;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-        course_id: number;
+        updated_at: Date;
         topic_id: number;
         topic_title: string;
         topic_description: string | null;
@@ -34,10 +34,10 @@ export declare class TopicsService {
     findOne(id: number): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        updated_at: Date;
+        course_id: number;
         learning_objectives: string;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-        course_id: number;
+        updated_at: Date;
         topic_id: number;
         topic_title: string;
         topic_description: string | null;
@@ -47,10 +47,10 @@ export declare class TopicsService {
     update(id: number, updateTopicDto: UpdateTopicDto): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        updated_at: Date;
+        course_id: number;
         learning_objectives: string;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-        course_id: number;
+        updated_at: Date;
         topic_id: number;
         topic_title: string;
         topic_description: string | null;
@@ -60,10 +60,10 @@ export declare class TopicsService {
     remove(id: number): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        updated_at: Date;
+        course_id: number;
         learning_objectives: string;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-        course_id: number;
+        updated_at: Date;
         topic_id: number;
         topic_title: string;
         topic_description: string | null;

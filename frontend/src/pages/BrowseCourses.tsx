@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthUser } from '../hooks/useAuthUser';
 import StudentLayout from '../components/layout/StudentLayout';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 interface CategoryData {
   category_id: number;
@@ -13,6 +13,8 @@ interface CategoryData {
 
 export default function BrowseCourses() {
   const user = useAuthUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchTerm = searchParams.get('search') || '';
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,6 +45,15 @@ export default function BrowseCourses() {
 
   if (!user) return null;
 
+  const filteredCategories = categories.filter((c) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      c.category_name.toLowerCase().includes(term) ||
+      (c.description && c.description.toLowerCase().includes(term))
+    );
+  });
+
   return (
     <StudentLayout user={user}>
       <section className="mb-12">
@@ -52,6 +63,20 @@ export default function BrowseCourses() {
         <p className="font-body-md text-text-secondary max-w-2xl">
           Explore our extensive catalog of courses organized by category. Find the perfect path to advance your career.
         </p>
+        {searchTerm && (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="font-label-mono text-xs text-text-secondary">
+              Filtering for: <strong className="text-primary">"{searchTerm}"</strong>
+            </span>
+            <button
+              onClick={() => setSearchParams({})}
+              className="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[14px]">close</span>
+              Clear Filter
+            </button>
+          </div>
+        )}
       </section>
 
       {error && (
@@ -67,12 +92,21 @@ export default function BrowseCourses() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {categories.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-text-secondary bg-white/40 rounded-3xl border border-white">
-              No course categories available at the moment.
+          {filteredCategories.length === 0 ? (
+            <div className="col-span-full py-16 text-center text-text-secondary bg-white/40 rounded-3xl border border-white flex flex-col items-center justify-center gap-3">
+              <span className="material-symbols-outlined text-4xl text-text-secondary/50">search_off</span>
+              <p className="font-bold text-base">No matching categories found{searchTerm ? ` for "${searchTerm}"` : ''}.</p>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchParams({})}
+                  className="mt-2 bg-primary text-white text-xs font-bold px-4 py-2 rounded-xl"
+                >
+                  View All Categories
+                </button>
+              )}
             </div>
           ) : (
-            categories.map(category => (
+            filteredCategories.map(category => (
               <Link 
                 key={category.category_id} 
                 to={`/courses/category/${category.category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}`}

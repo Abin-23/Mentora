@@ -70,11 +70,12 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                         select: { resource_id: true }
                     });
                     const validResourceIds = aiSources.map(r => r.resource_id);
+                    const numPerTopic = Math.max(3, Math.ceil(5 / Math.max(course.topics.length, 1)));
                     const payload = {
                         course_id: course.course_id,
                         topic_id: t.topic_id,
                         topic_title: t.topic_title,
-                        num_questions: 2,
+                        num_questions: numPerTopic,
                         assessment_type: 'INITIAL',
                         difficulty: 'EASY',
                         valid_resource_ids: validResourceIds

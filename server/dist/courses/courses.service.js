@@ -198,15 +198,26 @@ let CoursesService = class CoursesService {
                 slug,
             },
         });
-        if (updateCourseDto.status === 'Published' && course.status !== 'Published') {
-            this.aiGeneration.generateInitialAssessment(updated.course_id).catch(e => {
-                console.error('Failed to generate initial assessment async', e);
-            });
+        if (updateCourseDto.status === 'Published' || course.status === 'Published') {
             this.syncCourseToNeo4j(updated.course_id).catch(e => {
                 console.error('Failed to sync course to Neo4j async', e);
             });
         }
+        if (updateCourseDto.status === 'Published' && course.status !== 'Published') {
+            this.aiGeneration.generateInitialAssessment(updated.course_id).catch(e => {
+                console.error('Failed to generate initial assessment async', e);
+            });
+        }
         return updated;
+    }
+    async syncAllCoursesToNeo4j() {
+        const courses = await this.prisma.course.findMany({
+            select: { course_id: true }
+        });
+        for (const c of courses) {
+            await this.syncCourseToNeo4j(c.course_id);
+        }
+        return { success: true, count: courses.length };
     }
     async syncCourseToNeo4j(courseId) {
         if (!this.neo4jService.isDatabaseConnected()) {

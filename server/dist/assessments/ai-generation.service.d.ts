@@ -11,11 +11,11 @@ export declare class AiGenerationService {
     generateTopicAssessment(courseId: number, topicId: number, studentId: number): Promise<{
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
-        description: string | null;
-        created_by: number | null;
-        updated_at: Date;
-        title: string;
         course_id: number;
+        title: string;
+        description: string | null;
+        updated_at: Date;
+        created_by: number | null;
         assessment_id: number;
         assessment_type: import(".prisma/client").$Enums.AssessmentType;
         is_system_generated: boolean;
@@ -34,9 +34,9 @@ export declare class AiGenerationService {
     } & {
         status: import(".prisma/client").$Enums.QuestionStatus;
         created_at: Date;
-        created_by: number | null;
-        updated_at: Date;
         difficulty_level: import(".prisma/client").$Enums.QuestionDifficulty;
+        updated_at: Date;
+        created_by: number | null;
         topic_id: number;
         question_id: number;
         question_text: string;

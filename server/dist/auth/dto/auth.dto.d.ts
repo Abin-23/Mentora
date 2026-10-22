@@ -15,6 +15,7 @@ export declare class LoginDto {
 }
 export declare class ForgotPasswordDto {
     email: string;
+    frontendUrl?: string;
 }
 export declare class ResetPasswordDto {
     token: string;

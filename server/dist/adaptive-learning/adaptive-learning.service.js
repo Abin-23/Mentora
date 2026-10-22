@@ -47,51 +47,77 @@ let AdaptiveLearningService = class AdaptiveLearningService {
     }
     async generatePath(studentId, courseId, dto) {
         const limit = dto?.limit || 5;
-        const topicsResult = await this.neo4jService.read(`
-      MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t:Topic)
-      RETURN t.topicId AS topicId, t.title AS title, t.sequenceNumber AS sequenceNumber, t.difficulty AS difficulty
-      ORDER BY t.sequenceNumber
-      `, { courseId: neo4j_driver_1.default.int(courseId) });
-        const topics = topicsResult.records.map((rec) => ({
-            topicId: toNumberSafe(rec.get('topicId')),
-            title: rec.get('title'),
-            sequenceNumber: toNumberSafe(rec.get('sequenceNumber')),
-            difficulty: rec.get('difficulty'),
-        }));
-        if (topics.length === 0) {
-            throw new common_1.NotFoundException(`No topics found for course ${courseId}`);
-        }
-        const prereqResult = await this.neo4jService.read(`
-      MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t1:Topic)
-      MATCH (t1)-[:PREREQUISITE_FOR]->(t2:Topic)<-[:HAS_TOPIC]-(c)
-      RETURN t1.topicId AS prereqId, t2.topicId AS topicId
-      `, { courseId: neo4j_driver_1.default.int(courseId) });
-        const prerequisites = new Map();
-        prereqResult.records.forEach((rec) => {
-            const pId = toNumberSafe(rec.get('prereqId'));
-            const tId = toNumberSafe(rec.get('topicId'));
-            if (!prerequisites.has(tId))
-                prerequisites.set(tId, []);
-            prerequisites.get(tId).push(pId);
-        });
-        const stateResult = await this.neo4jService.read(`
-      MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic)<-[:HAS_TOPIC]-(c:Course {courseId: toInteger($courseId)})
-      RETURN t.topicId AS topicId, k.score AS score, k.proficiency AS proficiency
-      `, { studentId: neo4j_driver_1.default.int(studentId), courseId: neo4j_driver_1.default.int(courseId) });
+        let recommendedTopics = [];
         const knowledgeStates = new Map();
-        stateResult.records.forEach((rec) => {
-            knowledgeStates.set(toNumberSafe(rec.get('topicId')), {
-                score: rec.get('score'),
-                proficiency: rec.get('proficiency'),
-            });
-        });
-        const recommendedTopics = engine_1.AdaptiveLearningEngine.generatePath(topics, knowledgeStates, prerequisites, limit);
-        console.log(`Adaptive Engine Debug:
+        try {
+            const topicsResult = await this.neo4jService.read(`
+        MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t:Topic)
+        RETURN t.topicId AS topicId, t.title AS title, t.sequenceNumber AS sequenceNumber, t.difficulty AS difficulty
+        ORDER BY t.sequenceNumber
+        `, { courseId: neo4j_driver_1.default.int(courseId) });
+            const topics = topicsResult.records.map((rec) => ({
+                topicId: toNumberSafe(rec.get('topicId')),
+                title: rec.get('title'),
+                sequenceNumber: toNumberSafe(rec.get('sequenceNumber')),
+                difficulty: rec.get('difficulty'),
+            }));
+            if (topics.length > 0) {
+                const prereqResult = await this.neo4jService.read(`
+          MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t1:Topic)
+          MATCH (t1)-[:PREREQUISITE_FOR]->(t2:Topic)<-[:HAS_TOPIC]-(c)
+          RETURN t1.topicId AS prereqId, t2.topicId AS topicId
+          `, { courseId: neo4j_driver_1.default.int(courseId) });
+                const prerequisites = new Map();
+                prereqResult.records.forEach((rec) => {
+                    const pId = toNumberSafe(rec.get('prereqId'));
+                    const tId = toNumberSafe(rec.get('topicId'));
+                    if (!prerequisites.has(tId))
+                        prerequisites.set(tId, []);
+                    prerequisites.get(tId).push(pId);
+                });
+                const stateResult = await this.neo4jService.read(`
+          MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic)<-[:HAS_TOPIC]-(c:Course {courseId: toInteger($courseId)})
+          RETURN t.topicId AS topicId, k.score AS score, k.proficiency AS proficiency
+          `, { studentId: neo4j_driver_1.default.int(studentId), courseId: neo4j_driver_1.default.int(courseId) });
+                stateResult.records.forEach((rec) => {
+                    knowledgeStates.set(toNumberSafe(rec.get('topicId')), {
+                        score: rec.get('score'),
+                        proficiency: rec.get('proficiency'),
+                    });
+                });
+                recommendedTopics = engine_1.AdaptiveLearningEngine.generatePath(topics, knowledgeStates, prerequisites, limit);
+                console.log(`Adaptive Engine Debug:
 Course: ${courseId}, Student: ${studentId}
 Total Topics fetched: ${topics.length}
 Knowledge States Count: ${knowledgeStates.size}
 Prerequisites Count: ${prerequisites.size}
 Recommended Topics Count: ${recommendedTopics.length}`);
+            }
+        }
+        catch (neoErr) {
+            console.warn(`Neo4j unavailable for adaptive path generation: ${neoErr.message}. Falling back to PostgreSQL course structure.`);
+        }
+        if (!recommendedTopics || recommendedTopics.length === 0) {
+            const dbTopics = await this.prisma.topic.findMany({
+                where: { course_id: courseId },
+                orderBy: { sequence_number: 'asc' },
+                take: limit,
+            });
+            if (dbTopics.length === 0) {
+                throw new common_1.NotFoundException(`No topics found for course ${courseId}`);
+            }
+            recommendedTopics = dbTopics.map((t, idx) => ({
+                topicId: t.topic_id,
+                title: t.topic_title,
+                sequenceNumber: t.sequence_number,
+                difficulty: t.difficulty_level || 'EASY',
+                reason: idx === 0 ? 'Next Recommended Topic' : 'Upcoming Topic',
+                extendedReason: 'Structured progression through course curriculum.',
+                knowledgeScore: 0,
+                proficiency: 'UNASSESSED',
+                priorityScore: 100 - idx,
+            }));
+        }
         const hydratedTopics = await Promise.all(recommendedTopics.map(async (topic) => {
             const resources = await this.prisma.resource.findMany({
                 where: { topic_id: topic.topicId, status: 'Published' },
@@ -118,13 +144,18 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         };
     }
     async generatePersonalizedLesson(studentId, courseId, topicId) {
-        const stateResult = await this.neo4jService.read(`
-      MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
-      RETURN k.proficiency AS proficiency
-      `, { studentId: neo4j_driver_1.default.int(studentId), topicId: neo4j_driver_1.default.int(topicId) });
         let proficiencyLevel = 'BEGINNER';
-        if (stateResult.records.length > 0) {
-            proficiencyLevel = stateResult.records[0].get('proficiency') || 'BEGINNER';
+        try {
+            const stateResult = await this.neo4jService.read(`
+        MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
+        RETURN k.proficiency AS proficiency
+        `, { studentId: neo4j_driver_1.default.int(studentId), topicId: neo4j_driver_1.default.int(topicId) });
+            if (stateResult.records.length > 0) {
+                proficiencyLevel = stateResult.records[0].get('proficiency') || 'BEGINNER';
+            }
+        }
+        catch (neoErr) {
+            console.warn(`Neo4j knowledge state lookup failed (using default BEGINNER): ${neoErr.message}`);
         }
         const [topic, student] = await Promise.all([
             this.prisma.topic.findUnique({ where: { topic_id: topicId } }),
@@ -228,14 +259,25 @@ Recommended Topics Count: ${recommendedTopics.length}`);
                 }
             })();
             if (!isError) {
-                await this.prisma.topicAILesson.create({
-                    data: {
+                await this.prisma.topicAILesson.upsert({
+                    where: {
+                        topic_id_proficiency_level_teaching_preference: {
+                            topic_id: topicId,
+                            proficiency_level: proficiencyLevel,
+                            teaching_preference: teachingPreference,
+                        },
+                    },
+                    update: {
+                        content: lesson,
+                        sources: sources,
+                    },
+                    create: {
                         topic_id: topicId,
                         proficiency_level: proficiencyLevel,
                         teaching_preference: teachingPreference,
                         content: lesson,
-                        sources: sources
-                    }
+                        sources: sources,
+                    },
                 });
             }
             else {

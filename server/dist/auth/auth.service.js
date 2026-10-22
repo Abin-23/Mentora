@@ -110,8 +110,8 @@ let AuthService = class AuthService {
             },
         };
     }
-    async forgotPassword(forgotPasswordDto) {
-        const { email } = forgotPasswordDto;
+    async forgotPassword(forgotPasswordDto, originUrl) {
+        const { email, frontendUrl } = forgotPasswordDto;
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (user) {
             if (user.provider !== 'local') {
@@ -135,7 +135,8 @@ let AuthService = class AuthService {
                     reset_token_expires: resetTokenExpires,
                 },
             });
-            await this.mailService.sendPasswordResetEmail(email, resetToken, resetTokenExpires.getTime());
+            const targetFrontendUrl = frontendUrl || originUrl;
+            await this.mailService.sendPasswordResetEmail(email, resetToken, resetTokenExpires.getTime(), targetFrontendUrl);
         }
         return {
             message: 'If that email exists, a password reset link has been sent.',

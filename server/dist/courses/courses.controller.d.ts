@@ -7,11 +7,13 @@ export declare class CoursesController {
     create(createCourseDto: CreateCourseDto, req: any): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -19,10 +21,13 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }>;
+    syncAllNeo4j(): Promise<{
+        success: boolean;
+        count: number;
+    }>;
+    syncCourseNeo4j(id: number): Promise<void>;
     findAll(req: any): import(".prisma/client").Prisma.PrismaPromise<({
         category: {
             category_name: string;
@@ -34,11 +39,13 @@ export declare class CoursesController {
     } & {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -46,9 +53,7 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     })[]>;
     findByCategory(categoryIdOrSlug: string, req: any): Promise<{
         is_enrolled: boolean;
@@ -59,11 +64,13 @@ export declare class CoursesController {
         };
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -71,9 +78,7 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }[]>;
     getCoursePlayerContent(idOrSlug: string, req: any): Promise<{
         topics: never[];
@@ -81,11 +86,11 @@ export declare class CoursesController {
         initial_assessment: {
             status: import(".prisma/client").$Enums.AssessmentStatus;
             created_at: Date;
-            description: string | null;
-            created_by: number | null;
-            updated_at: Date;
-            title: string;
             course_id: number;
+            title: string;
+            description: string | null;
+            updated_at: Date;
+            created_by: number | null;
             assessment_id: number;
             assessment_type: import(".prisma/client").$Enums.AssessmentType;
             is_system_generated: boolean;
@@ -100,11 +105,13 @@ export declare class CoursesController {
         };
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -112,9 +119,7 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     } | {
         initial_assessment_pending: boolean;
         course_admin: {
@@ -126,8 +131,8 @@ export declare class CoursesController {
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
                 description: string | null;
-                updated_at: Date;
                 thumbnail_key: string | null;
+                updated_at: Date;
                 topic_id: number;
                 sequence_number: number;
                 resource_id: number;
@@ -143,10 +148,10 @@ export declare class CoursesController {
         } & {
             status: import(".prisma/client").$Enums.CourseStatus;
             created_at: Date;
-            updated_at: Date;
+            course_id: number;
             learning_objectives: string;
             difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-            course_id: number;
+            updated_at: Date;
             topic_id: number;
             topic_title: string;
             topic_description: string | null;
@@ -155,11 +160,13 @@ export declare class CoursesController {
         })[];
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -167,9 +174,7 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }>;
     findOne(idOrSlug: string, req: any): Promise<{
         is_enrolled: boolean;
@@ -183,11 +188,13 @@ export declare class CoursesController {
         };
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -195,18 +202,18 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }>;
     update(id: number, updateCourseDto: UpdateCourseDto, req: any): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -214,18 +221,18 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }>;
     remove(id: number, req: any): Promise<{
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
-        description: string;
+        course_admin_id: number;
+        course_id: number;
         category_id: number;
-        updated_at: Date;
         title: string;
+        slug: string;
         short_description: string;
+        description: string;
         learning_objectives: string;
         prerequisites: string | null;
         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -233,8 +240,6 @@ export declare class CoursesController {
         duration_hours: import("@prisma/client/runtime/library").Decimal | null;
         price: import("@prisma/client/runtime/library").Decimal;
         thumbnail_key: string | null;
-        course_id: number;
-        slug: string;
-        course_admin_id: number;
+        updated_at: Date;
     }>;
 }

@@ -25,7 +25,7 @@ export declare class AuthService {
             role: import(".prisma/client").$Enums.Role;
         };
     }>;
-    forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto, originUrl?: string): Promise<{
         message: string;
     }>;
     resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{

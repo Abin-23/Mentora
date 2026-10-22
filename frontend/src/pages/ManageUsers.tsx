@@ -85,7 +85,11 @@ export default function ManageUsers() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ email: newAdminEmail, full_name: newAdminName })
+        body: JSON.stringify({ 
+          email: newAdminEmail, 
+          full_name: newAdminName,
+          frontendUrl: window.location.origin 
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to create admin');

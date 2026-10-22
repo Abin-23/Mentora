@@ -7,11 +7,11 @@ export declare class AssessmentsController {
     generateTopicAssessment(courseId: number, topicId: number, req: any): Promise<{
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
-        description: string | null;
-        created_by: number | null;
-        updated_at: Date;
-        title: string;
         course_id: number;
+        title: string;
+        description: string | null;
+        updated_at: Date;
+        created_by: number | null;
         assessment_id: number;
         assessment_type: import(".prisma/client").$Enums.AssessmentType;
         is_system_generated: boolean;
@@ -39,11 +39,11 @@ export declare class AssessmentsController {
     } & {
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
-        description: string | null;
-        created_by: number | null;
-        updated_at: Date;
-        title: string;
         course_id: number;
+        title: string;
+        description: string | null;
+        updated_at: Date;
+        created_by: number | null;
         assessment_id: number;
         assessment_type: import(".prisma/client").$Enums.AssessmentType;
         is_system_generated: boolean;
@@ -60,11 +60,11 @@ export declare class AssessmentsController {
         } & {
             status: import(".prisma/client").$Enums.AssessmentStatus;
             created_at: Date;
-            description: string | null;
-            created_by: number | null;
-            updated_at: Date;
-            title: string;
             course_id: number;
+            title: string;
+            description: string | null;
+            updated_at: Date;
+            created_by: number | null;
             assessment_id: number;
             assessment_type: import(".prisma/client").$Enums.AssessmentType;
             is_system_generated: boolean;
@@ -114,9 +114,9 @@ export declare class AssessmentsController {
             } & {
                 status: import(".prisma/client").$Enums.QuestionStatus;
                 created_at: Date;
-                created_by: number | null;
-                updated_at: Date;
                 difficulty_level: import(".prisma/client").$Enums.QuestionDifficulty;
+                updated_at: Date;
+                created_by: number | null;
                 topic_id: number;
                 question_id: number;
                 question_text: string;
@@ -134,11 +134,11 @@ export declare class AssessmentsController {
     } & {
         status: import(".prisma/client").$Enums.AssessmentStatus;
         created_at: Date;
-        description: string | null;
-        created_by: number | null;
-        updated_at: Date;
-        title: string;
         course_id: number;
+        title: string;
+        description: string | null;
+        updated_at: Date;
+        created_by: number | null;
         assessment_id: number;
         assessment_type: import(".prisma/client").$Enums.AssessmentType;
         is_system_generated: boolean;
@@ -205,9 +205,9 @@ export declare class AssessmentsController {
     } & {
         status: import(".prisma/client").$Enums.QuestionStatus;
         created_at: Date;
-        created_by: number | null;
-        updated_at: Date;
         difficulty_level: import(".prisma/client").$Enums.QuestionDifficulty;
+        updated_at: Date;
+        created_by: number | null;
         topic_id: number;
         question_id: number;
         question_text: string;
@@ -239,10 +239,10 @@ export declare class AssessmentsController {
                     topic: {
                         status: import(".prisma/client").$Enums.CourseStatus;
                         created_at: Date;
-                        updated_at: Date;
+                        course_id: number;
                         learning_objectives: string;
                         difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-                        course_id: number;
+                        updated_at: Date;
                         topic_id: number;
                         topic_title: string;
                         topic_description: string | null;
@@ -252,9 +252,9 @@ export declare class AssessmentsController {
                 } & {
                     status: import(".prisma/client").$Enums.QuestionStatus;
                     created_at: Date;
-                    created_by: number | null;
-                    updated_at: Date;
                     difficulty_level: import(".prisma/client").$Enums.QuestionDifficulty;
+                    updated_at: Date;
+                    created_by: number | null;
                     topic_id: number;
                     question_id: number;
                     question_text: string;
@@ -272,11 +272,11 @@ export declare class AssessmentsController {
         } & {
             status: import(".prisma/client").$Enums.AssessmentStatus;
             created_at: Date;
-            description: string | null;
-            created_by: number | null;
-            updated_at: Date;
-            title: string;
             course_id: number;
+            title: string;
+            description: string | null;
+            updated_at: Date;
+            created_by: number | null;
             assessment_id: number;
             assessment_type: import(".prisma/client").$Enums.AssessmentType;
             is_system_generated: boolean;
@@ -298,9 +298,9 @@ export declare class AssessmentsController {
             } & {
                 status: import(".prisma/client").$Enums.QuestionStatus;
                 created_at: Date;
-                created_by: number | null;
-                updated_at: Date;
                 difficulty_level: import(".prisma/client").$Enums.QuestionDifficulty;
+                updated_at: Date;
+                created_by: number | null;
                 topic_id: number;
                 question_id: number;
                 question_text: string;

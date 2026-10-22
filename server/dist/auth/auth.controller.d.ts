@@ -22,7 +22,7 @@ export declare class AuthController {
             role: import(".prisma/client").$Enums.Role;
         };
     }>;
-    forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto, req: any): Promise<{
         message: string;
     }>;
     resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{

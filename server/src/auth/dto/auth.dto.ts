@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsString,
+  IsOptional,
   MinLength,
   MaxLength,
   IsStrongPassword,
@@ -90,6 +91,10 @@ export class LoginDto {
 export class ForgotPasswordDto {
   @IsEmail()
   email!: string;
+
+  @IsOptional()
+  @IsString()
+  frontendUrl?: string;
 }
 
 export class ResetPasswordDto {

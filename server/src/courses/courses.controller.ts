@@ -29,6 +29,20 @@ export class CoursesController {
     return this.coursesService.create(createCourseDto, req.user.user_id);
   }
 
+  @Post('sync-neo4j')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.SystemAdmin, Role.CourseAdmin)
+  syncAllNeo4j() {
+    return this.coursesService.syncAllCoursesToNeo4j();
+  }
+
+  @Post(':id/sync-neo4j')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.SystemAdmin, Role.CourseAdmin)
+  syncCourseNeo4j(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.syncCourseToNeo4j(id);
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.SystemAdmin, Role.CourseAdmin)

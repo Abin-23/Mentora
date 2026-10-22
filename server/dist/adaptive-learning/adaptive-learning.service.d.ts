@@ -22,8 +22,8 @@ export declare class AdaptiveLearningService {
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
                 description: string | null;
-                updated_at: Date;
                 thumbnail_key: string | null;
+                updated_at: Date;
                 topic_id: number;
                 sequence_number: number;
                 resource_id: number;
@@ -121,8 +121,8 @@ export declare class AdaptiveLearningService {
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
                 description: string | null;
-                updated_at: Date;
                 thumbnail_key: string | null;
+                updated_at: Date;
                 topic_id: number;
                 sequence_number: number;
                 resource_id: number;
@@ -156,10 +156,10 @@ export declare class AdaptiveLearningService {
         target_topic: {
             status: import(".prisma/client").$Enums.CourseStatus;
             created_at: Date;
-            updated_at: Date;
+            course_id: number;
             learning_objectives: string;
             difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-            course_id: number;
+            updated_at: Date;
             topic_id: number;
             topic_title: string;
             topic_description: string | null;
@@ -168,8 +168,8 @@ export declare class AdaptiveLearningService {
         } | null;
         status: import(".prisma/client").$Enums.GoalStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
         student_id: number;
         goal_id: number;
         goal_type: import(".prisma/client").$Enums.GoalType;
@@ -180,8 +180,8 @@ export declare class AdaptiveLearningService {
     createStudentGoal(studentId: number, courseId: number, body: any): Promise<{
         status: import(".prisma/client").$Enums.GoalStatus;
         created_at: Date;
-        updated_at: Date;
         course_id: number;
+        updated_at: Date;
         student_id: number;
         goal_id: number;
         goal_type: import(".prisma/client").$Enums.GoalType;

@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 class CreateAdminDto {
     full_name;
     email;
+    frontendUrl;
 }
 exports.CreateAdminDto = CreateAdminDto;
 __decorate([
@@ -25,4 +26,9 @@ __decorate([
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], CreateAdminDto.prototype, "email", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminDto.prototype, "frontendUrl", void 0);
 //# sourceMappingURL=create-admin.dto.js.map

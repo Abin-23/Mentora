@@ -29,6 +29,12 @@ let CoursesController = class CoursesController {
     create(createCourseDto, req) {
         return this.coursesService.create(createCourseDto, req.user.user_id);
     }
+    syncAllNeo4j() {
+        return this.coursesService.syncAllCoursesToNeo4j();
+    }
+    syncCourseNeo4j(id) {
+        return this.coursesService.syncCourseToNeo4j(id);
+    }
     findAll(req) {
         return this.coursesService.findAll(req.user);
     }
@@ -59,6 +65,23 @@ __decorate([
     __metadata("design:paramtypes", [create_course_dto_1.CreateCourseDto, Object]),
     __metadata("design:returntype", void 0)
 ], CoursesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('sync-neo4j'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.SystemAdmin, client_1.Role.CourseAdmin),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CoursesController.prototype, "syncAllNeo4j", null);
+__decorate([
+    (0, common_1.Post)(':id/sync-neo4j'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.SystemAdmin, client_1.Role.CourseAdmin),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], CoursesController.prototype, "syncCourseNeo4j", null);
 __decorate([
     (0, common_1.Get)(),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),

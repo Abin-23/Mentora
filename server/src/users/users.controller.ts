@@ -38,6 +38,14 @@ export class UsersController {
     return this.usersService.getProfile(req.user.user_id);
   }
 
+  @Get('admin/stats')
+  @Roles(Role.SystemAdmin, Role.CourseAdmin)
+  getAdminStats(@Req() req: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    return this.usersService.getAdminStats(req.user);
+  }
+
+
   @Patch('profile')
   updateProfile(@Req() req: any, @Body() updateDto: UpdateProfileDto) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -94,7 +102,12 @@ export class UsersController {
 
   @Post('admin')
   @Roles(Role.SystemAdmin)
-  createCourseAdmin(@Body() dto: CreateAdminDto) {
-    return this.usersService.createCourseAdmin(dto);
+  createCourseAdmin(
+    @Body() dto: CreateAdminDto,
+    @Req() req: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const origin = dto.frontendUrl || req.headers?.origin || (req.headers?.referer ? new URL(req.headers.referer).origin : undefined);
+    return this.usersService.createCourseAdmin(dto, origin);
   }
 }

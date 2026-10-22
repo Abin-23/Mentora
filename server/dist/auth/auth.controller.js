@@ -29,8 +29,9 @@ let AuthController = class AuthController {
     login(loginDto) {
         return this.authService.login(loginDto);
     }
-    forgotPassword(forgotPasswordDto) {
-        return this.authService.forgotPassword(forgotPasswordDto);
+    forgotPassword(forgotPasswordDto, req) {
+        const origin = req.headers?.origin || (req.headers?.referer ? new URL(req.headers.referer).origin : undefined);
+        return this.authService.forgotPassword(forgotPasswordDto, origin);
     }
     resetPassword(resetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto);
@@ -38,13 +39,19 @@ let AuthController = class AuthController {
     async googleAuth() { }
     googleAuthRedirect(req, res) {
         const token = req.user.access_token;
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = process.env.FRONTEND_URL ||
+            (process.env.NODE_ENV === 'production'
+                ? 'https://mentora-six-bice.vercel.app'
+                : 'http://localhost:5173');
         res.redirect(`${frontendUrl}/login?token=${token}`);
     }
     async githubAuth() { }
     githubAuthRedirect(req, res) {
         const token = req.user.access_token;
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = process.env.FRONTEND_URL ||
+            (process.env.NODE_ENV === 'production'
+                ? 'https://mentora-six-bice.vercel.app'
+                : 'http://localhost:5173');
         res.redirect(`${frontendUrl}/login?token=${token}`);
     }
 };
@@ -68,8 +75,9 @@ __decorate([
     (0, common_1.Post)('forgot-password'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [auth_dto_1.ForgotPasswordDto]),
+    __metadata("design:paramtypes", [auth_dto_1.ForgotPasswordDto, Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "forgotPassword", null);
 __decorate([

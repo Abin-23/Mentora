@@ -7,12 +7,12 @@ export declare class CategoriesController {
     create(createCategoryDto: CreateCategoryDto, req: any): Promise<{
         status: import(".prisma/client").$Enums.Status;
         created_at: Date;
-        category_name: string;
-        description: string | null;
-        icon: string | null;
         category_id: number;
-        created_by: number;
+        description: string | null;
         updated_at: Date;
+        category_name: string;
+        icon: string | null;
+        created_by: number;
     }>;
     findAll(): import(".prisma/client").Prisma.PrismaPromise<({
         creator: {
@@ -22,41 +22,41 @@ export declare class CategoriesController {
     } & {
         status: import(".prisma/client").$Enums.Status;
         created_at: Date;
-        category_name: string;
-        description: string | null;
-        icon: string | null;
         category_id: number;
-        created_by: number;
+        description: string | null;
         updated_at: Date;
+        category_name: string;
+        icon: string | null;
+        created_by: number;
     })[]>;
     findOne(idOrSlug: string): Promise<{
         status: import(".prisma/client").$Enums.Status;
         created_at: Date;
-        category_name: string;
-        description: string | null;
-        icon: string | null;
         category_id: number;
-        created_by: number;
+        description: string | null;
         updated_at: Date;
+        category_name: string;
+        icon: string | null;
+        created_by: number;
     }>;
     update(id: number, updateCategoryDto: UpdateCategoryDto, req: any): Promise<{
         status: import(".prisma/client").$Enums.Status;
         created_at: Date;
-        category_name: string;
-        description: string | null;
-        icon: string | null;
         category_id: number;
-        created_by: number;
+        description: string | null;
         updated_at: Date;
+        category_name: string;
+        icon: string | null;
+        created_by: number;
     }>;
     remove(id: number, req: any): Promise<{
         status: import(".prisma/client").$Enums.Status;
         created_at: Date;
-        category_name: string;
-        description: string | null;
-        icon: string | null;
         category_id: number;
-        created_by: number;
+        description: string | null;
         updated_at: Date;
+        category_name: string;
+        icon: string | null;
+        created_by: number;
     }>;
 }

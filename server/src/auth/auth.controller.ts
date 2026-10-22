@@ -38,8 +38,13 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Req() req: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const origin = req.headers?.origin || (req.headers?.referer ? new URL(req.headers.referer).origin : undefined);
+    return this.authService.forgotPassword(forgotPasswordDto, origin);
   }
 
   @Post('reset-password')
@@ -58,7 +63,11 @@ export class AuthController {
   googleAuthRedirect(@Req() req: any, @Res() res: Response) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const token = req.user.access_token;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://mentora-six-bice.vercel.app'
+        : 'http://localhost:5173');
     res.redirect(`${frontendUrl}/login?token=${token}`);
   }
 
@@ -72,7 +81,11 @@ export class AuthController {
   githubAuthRedirect(@Req() req: any, @Res() res: Response) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const token = req.user.access_token;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://mentora-six-bice.vercel.app'
+        : 'http://localhost:5173');
     res.redirect(`${frontendUrl}/login?token=${token}`);
   }
 }

@@ -13,8 +13,8 @@ export declare class ResourcesController {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
         description: string | null;
-        updated_at: Date;
         thumbnail_key: string | null;
+        updated_at: Date;
         topic_id: number;
         sequence_number: number;
         resource_id: number;
@@ -31,8 +31,8 @@ export declare class ResourcesController {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
         description: string | null;
-        updated_at: Date;
         thumbnail_key: string | null;
+        updated_at: Date;
         topic_id: number;
         sequence_number: number;
         resource_id: number;
@@ -54,8 +54,8 @@ export declare class ResourcesController {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
         description: string | null;
-        updated_at: Date;
         thumbnail_key: string | null;
+        updated_at: Date;
         topic_id: number;
         sequence_number: number;
         resource_id: number;
@@ -72,8 +72,8 @@ export declare class ResourcesController {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
         description: string | null;
-        updated_at: Date;
         thumbnail_key: string | null;
+        updated_at: Date;
         topic_id: number;
         sequence_number: number;
         resource_id: number;
@@ -90,8 +90,8 @@ export declare class ResourcesController {
         status: import(".prisma/client").$Enums.CourseStatus;
         created_at: Date;
         description: string | null;
-        updated_at: Date;
         thumbnail_key: string | null;
+        updated_at: Date;
         topic_id: number;
         sequence_number: number;
         resource_id: number;

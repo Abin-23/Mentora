@@ -195,7 +195,7 @@ let UsersService = class UsersService {
         const { password, reset_token, reset_token_expires, ...result } = user;
         return result;
     }
-    async createCourseAdmin(dto) {
+    async createCourseAdmin(dto, originUrl) {
         const existing = await this.prisma.user.findUnique({
             where: { email: dto.email },
         });
@@ -214,9 +214,97 @@ let UsersService = class UsersService {
                 reset_token_expires: resetTokenExpires,
             },
         });
-        await this.mailService.sendAdminWelcomeEmail(user.email, user.full_name, resetToken, resetTokenExpires.getTime());
+        const targetFrontendUrl = dto.frontendUrl || originUrl;
+        try {
+            await this.mailService.sendAdminWelcomeEmail(user.email, user.full_name, resetToken, resetTokenExpires.getTime(), targetFrontendUrl);
+        }
+        catch (mailError) {
+            console.error('Failed to send admin welcome email:', mailError);
+        }
         const { password, reset_token, reset_token_expires, ...result } = user;
         return result;
+    }
+    async getAdminStats(user) {
+        const isSystemAdmin = user.role === client_1.Role.SystemAdmin;
+        const courseWhere = isSystemAdmin ? {} : { course_admin_id: user.user_id };
+        const enrollmentWhere = isSystemAdmin ? {} : { course: { course_admin_id: user.user_id } };
+        const purchaseWhere = isSystemAdmin
+            ? { status: 'PAID' }
+            : { status: 'PAID', course: { course_admin_id: user.user_id } };
+        const [totalUsers, totalStudents, totalAdmins, totalCourses, publishedCourses, totalCategories, totalEnrollments, totalRevenueResult, totalCertificates, recentEnrollments, recentCourses, recentUsers,] = await Promise.all([
+            this.prisma.user.count(),
+            this.prisma.user.count({ where: { role: client_1.Role.Student } }),
+            this.prisma.user.count({
+                where: { role: { in: [client_1.Role.SystemAdmin, client_1.Role.CourseAdmin] } },
+            }),
+            this.prisma.course.count({ where: courseWhere }),
+            this.prisma.course.count({
+                where: { ...courseWhere, status: 'Published' },
+            }),
+            this.prisma.category.count(),
+            this.prisma.enrollment.count({ where: enrollmentWhere }),
+            this.prisma.purchase.aggregate({
+                _sum: { amount: true },
+                where: purchaseWhere,
+            }),
+            this.prisma.certificate.count(isSystemAdmin
+                ? undefined
+                : { where: { course: { course_admin_id: user.user_id } } }),
+            this.prisma.enrollment.findMany({
+                take: 5,
+                where: enrollmentWhere,
+                orderBy: { enrolled_at: 'desc' },
+                include: {
+                    user: {
+                        select: { full_name: true, email: true, profile_image: true },
+                    },
+                    course: {
+                        select: { title: true, slug: true },
+                    },
+                },
+            }),
+            this.prisma.course.findMany({
+                take: 5,
+                where: courseWhere,
+                orderBy: { created_at: 'desc' },
+                include: {
+                    category: { select: { category_name: true } },
+                    course_admin: { select: { full_name: true } },
+                },
+            }),
+            isSystemAdmin
+                ? this.prisma.user.findMany({
+                    take: 5,
+                    orderBy: { created_at: 'desc' },
+                    select: {
+                        user_id: true,
+                        full_name: true,
+                        email: true,
+                        role: true,
+                        status: true,
+                        created_at: true,
+                    },
+                })
+                : Promise.resolve([]),
+        ]);
+        const totalRevenue = totalRevenueResult._sum.amount
+            ? Number(totalRevenueResult._sum.amount)
+            : 0;
+        return {
+            isSystemAdmin,
+            totalUsers,
+            totalStudents,
+            totalAdmins,
+            totalCourses,
+            publishedCourses,
+            totalCategories,
+            totalEnrollments,
+            totalRevenue,
+            totalCertificates,
+            recentEnrollments,
+            recentCourses,
+            recentUsers,
+        };
     }
 };
 exports.UsersService = UsersService;

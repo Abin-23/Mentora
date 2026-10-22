@@ -100,12 +100,18 @@ __decorate([
 ], LoginDto.prototype, "password", void 0);
 class ForgotPasswordDto {
     email;
+    frontendUrl;
 }
 exports.ForgotPasswordDto = ForgotPasswordDto;
 __decorate([
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], ForgotPasswordDto.prototype, "email", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ForgotPasswordDto.prototype, "frontendUrl", void 0);
 class ResetPasswordDto {
     token;
     newPassword;

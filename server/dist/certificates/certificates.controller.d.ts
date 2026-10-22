@@ -6,11 +6,13 @@ export declare class CertificatesController {
         course: {
             status: import(".prisma/client").$Enums.CourseStatus;
             created_at: Date;
-            description: string;
+            course_admin_id: number;
+            course_id: number;
             category_id: number;
-            updated_at: Date;
             title: string;
+            slug: string;
             short_description: string;
+            description: string;
             learning_objectives: string;
             prerequisites: string | null;
             difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
@@ -18,9 +20,7 @@ export declare class CertificatesController {
             duration_hours: import("@prisma/client/runtime/library").Decimal | null;
             price: import("@prisma/client/runtime/library").Decimal;
             thumbnail_key: string | null;
-            course_id: number;
-            slug: string;
-            course_admin_id: number;
+            updated_at: Date;
         };
     } & {
         course_id: number;
@@ -44,8 +44,8 @@ export declare class CertificatesController {
                 status: import(".prisma/client").$Enums.CourseStatus;
                 created_at: Date;
                 description: string | null;
-                updated_at: Date;
                 thumbnail_key: string | null;
+                updated_at: Date;
                 topic_id: number;
                 sequence_number: number;
                 resource_id: number;
@@ -61,10 +61,10 @@ export declare class CertificatesController {
         } & {
             status: import(".prisma/client").$Enums.CourseStatus;
             created_at: Date;
-            updated_at: Date;
+            course_id: number;
             learning_objectives: string;
             difficulty_level: import(".prisma/client").$Enums.DifficultyLevel;
-            course_id: number;
+            updated_at: Date;
             topic_id: number;
             topic_title: string;
             topic_description: string | null;
