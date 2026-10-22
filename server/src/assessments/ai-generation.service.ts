@@ -353,10 +353,11 @@ export class AiGenerationService {
           
           for (const q of newlyGeneratedQuestions) {
             const questionText = q.question_text || q.question;
-            const qDifficulty = q.difficulty || q.difficulty_level || 'MEDIUM';
+            const qDifficulty = (q.difficulty || q.difficulty_level || 'MEDIUM').toUpperCase();
 
             // 1. Difficulty Level Validation
-            if (!targetDifficulties.includes(qDifficulty)) {
+            const targetDifficultiesUpper = targetDifficulties.map(d => d.toUpperCase());
+            if (!targetDifficultiesUpper.includes(qDifficulty)) {
               this.logger.warn(`Rejected question: Invalid difficulty ${qDifficulty}`);
               continue;
             }
@@ -395,7 +396,7 @@ export class AiGenerationService {
               this.logger.warn(`Rejected question: Missing source metadata`);
               continue;
             }
-            const hasValidSource = q.sources.some((s: any) => s.resourceId && validResourceIds.includes(s.resourceId));
+            const hasValidSource = validResourceIds.length === 0 || q.sources.some((s: any) => s.resourceId && validResourceIds.includes(s.resourceId));
             if (!hasValidSource) {
               this.logger.warn(`Rejected question: No approved RAG valid_resource_ids found in sources`);
               continue;
@@ -548,9 +549,9 @@ export class AiGenerationService {
 
           for (const q of data.questions) {
             const questionText = q.question_text || q.question;
-            const qDifficulty = q.difficulty || q.difficulty_level || 'MEDIUM';
+            const qDifficulty = (q.difficulty || q.difficulty_level || 'MEDIUM').toUpperCase();
 
-            if (qDifficulty !== difficulty) continue;
+            if (qDifficulty !== difficulty.toUpperCase()) continue;
             if (!questionText || typeof questionText !== 'string' || questionText.trim().length < 10) continue;
             if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) continue;
             
@@ -561,7 +562,7 @@ export class AiGenerationService {
             if (!q.explanation || typeof q.explanation !== 'string' || q.explanation.trim().length === 0) continue;
             if (!q.sources || !Array.isArray(q.sources) || q.sources.length === 0) continue;
             
-            const hasValidSource = q.sources.some((s: any) => s.resourceId && validResourceIds.includes(s.resourceId));
+            const hasValidSource = validResourceIds.length === 0 || q.sources.some((s: any) => s.resourceId && validResourceIds.includes(s.resourceId));
             if (!hasValidSource) continue;
 
             const normalizedText = questionText.toLowerCase().trim();

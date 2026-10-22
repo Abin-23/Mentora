@@ -266,7 +266,23 @@ Recommended Topics Count: ${recommendedTopics.length}`);
 
     // 6. Process Visual Resources
     try {
-      const parsedLesson = JSON.parse(lesson);
+      let parsedLesson: any = null;
+      try {
+        parsedLesson = typeof lesson === 'string' ? JSON.parse(lesson) : lesson;
+      } catch {
+        parsedLesson = {
+          title: topic.topic_title,
+          blocks: [
+            {
+              type: 'CONCEPT',
+              title: topic.topic_title,
+              content: typeof lesson === 'string' ? lesson : 'Welcome to this topic lesson.'
+            }
+          ]
+        };
+        lesson = JSON.stringify(parsedLesson);
+      }
+
       if (parsedLesson && Array.isArray(parsedLesson.blocks)) {
         for (const block of parsedLesson.blocks) {
           if (block.visual && block.visual.query && !block.visual.url) {
