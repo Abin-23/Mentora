@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -19,6 +20,8 @@ import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -121,12 +124,18 @@ export class AuthService {
 
       // Send the actual email
       const targetFrontendUrl = frontendUrl || originUrl;
-      await this.mailService.sendPasswordResetEmail(
-        email,
-        resetToken,
-        resetTokenExpires.getTime(),
-        targetFrontendUrl,
-      );
+      try {
+        await this.mailService.sendPasswordResetEmail(
+          email,
+          resetToken,
+          resetTokenExpires.getTime(),
+          targetFrontendUrl,
+        );
+      } catch (emailError: any) {
+        this.logger.error(
+          `[Forgot Password] Failed to dispatch email to ${email}: ${emailError?.message}`,
+        );
+      }
     }
 
     return {
