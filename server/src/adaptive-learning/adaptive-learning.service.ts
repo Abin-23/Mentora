@@ -255,6 +255,8 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         teaching_preference: teachingPreference,
         targeted_concepts: targetedConcepts,
         valid_resource_ids: aiSourceIds
+      }, {
+        headers: { 'ngrok-skip-browser-warning': 'true' }
       });
       responseData = response.data;
     } catch (err: any) {
@@ -831,7 +833,10 @@ Recommended Topics Count: ${recommendedTopics.length}`);
       const ragUrl = this.ragServiceUrl;
       const ragResponse = await fetch(`${ragUrl}/api/tutor`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: JSON.stringify({
            query,
            course_id: courseId,

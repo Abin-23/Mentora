@@ -81,7 +81,10 @@ export class AiGenerationService {
 
           const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+            },
             body: JSON.stringify(payload),
             signal: controller.signal
           });
@@ -328,7 +331,10 @@ export class AiGenerationService {
         try {
           const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+            },
             body: JSON.stringify(payload),
             signal: controller.signal
           });
@@ -536,7 +542,10 @@ export class AiGenerationService {
         try {
           const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+            },
             body: JSON.stringify(payload),
             signal: controller.signal
           });

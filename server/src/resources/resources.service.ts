@@ -177,7 +177,10 @@ export class ResourcesService {
           formData.append('resource_name', newResource.resource_title);
 
           await axios.post(`${this.ragServiceUrl}/api/ingest/pdf`, formData, {
-            headers: formData.getHeaders(),
+            headers: {
+              ...formData.getHeaders(),
+              'ngrok-skip-browser-warning': 'true',
+            },
           });
           console.log(`Successfully ingested resource ${newResource.resource_id} to RAG`);
 
@@ -236,7 +239,9 @@ export class ResourcesService {
     // If is_ai_source was turned off, delete from RAG
     if (existing.is_ai_source && dataToUpdate.is_ai_source === false) {
       try {
-        await axios.delete(`${this.ragServiceUrl}/api/documents/${id}`);
+        await axios.delete(`${this.ragServiceUrl}/api/documents/${id}`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        });
         console.log(`Deleted resource ${id} from RAG`);
       } catch (err) {
         console.error('Failed to delete resource from RAG service:', err);
@@ -264,7 +269,9 @@ export class ResourcesService {
         where: { topic_id: resource.topic_id },
       });
       try {
-        await axios.delete(`${this.ragServiceUrl}/api/documents/${id}`);
+        await axios.delete(`${this.ragServiceUrl}/api/documents/${id}`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        });
       } catch (err) {
         console.error('Failed to delete resource from RAG service:', err);
       }
