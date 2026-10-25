@@ -781,51 +781,41 @@ Recommended Topics Count: ${recommendedTopics.length}`);
     
     if (!query) throw new Error('Query is required');
 
-    // 1. Verify enrollment
-    const enrollment = await this.prisma.enrollment.findFirst({
-      where: { user_id: studentId, course_id: courseId }
-    });
-    if (!enrollment) throw new NotFoundException('Student is not enrolled in this course.');
-
-    // 2. Verify topic
-    if (topic_id) {
-      const topic = await this.prisma.topic.findFirst({
+    // 1-5. Parallelize independent context fetches (Postgres, Neo4j, concept performance)
+    const [enrollment, topic, student, stateResult, perfMap] = await Promise.all([
+      this.prisma.enrollment.findFirst({
+        where: { user_id: studentId, course_id: courseId }
+      }),
+      topic_id ? this.prisma.topic.findFirst({
         where: { topic_id: topic_id, course_id: courseId }
-      });
-      if (!topic) throw new NotFoundException('Topic does not belong to this course.');
-    }
+      }) : Promise.resolve(null),
+      this.prisma.user.findUnique({
+        where: { user_id: studentId },
+        select: { teaching_preference: true }
+      }),
+      topic_id ? this.neo4jService.read(
+        `
+        MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
+        RETURN k.proficiency AS proficiency
+        `,
+        { studentId: neo4j.int(studentId), topicId: neo4j.int(topic_id) }
+      ).catch(() => ({ records: [] })) : Promise.resolve({ records: [] }),
+      this.learningProgressService.getConceptPerformance(studentId, courseId).catch(() => null)
+    ]);
 
-    // 3. Get Student info
-    const student = await this.prisma.user.findUnique({
-      where: { user_id: studentId },
-      select: { teaching_preference: true }
-    });
+    if (!enrollment) throw new NotFoundException('Student is not enrolled in this course.');
+    if (topic_id && !topic) throw new NotFoundException('Topic does not belong to this course.');
 
-    // 4. Get Knowledge State
-    let proficiency = 'UNASSESSED';
-    if (topic_id) {
-       const stateResult = await this.neo4jService.read(
-         `
-         MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
-         RETURN k.proficiency AS proficiency
-         `,
-         { studentId: neo4j.int(studentId), topicId: neo4j.int(topic_id) }
-       );
-       if (stateResult.records.length > 0) {
-         proficiency = stateResult.records[0].get('proficiency');
-       }
-    }
+    const proficiency = (stateResult?.records && stateResult.records.length > 0)
+      ? stateResult.records[0].get('proficiency')
+      : 'UNASSESSED';
 
-    // 5. Get Weak Concepts
     let weakConcepts: string[] = [];
-    try {
-      const perfMap = await this.learningProgressService.getConceptPerformance(studentId, courseId);
-      if (perfMap && perfMap.concepts) {
-        weakConcepts = perfMap.concepts
-          .filter((c: any) => c.performance === 'WEAK' || c.performance === 'DEVELOPING')
-          .map((c: any) => c.conceptTag);
-      }
-    } catch(e) {}
+    if (perfMap && perfMap.concepts) {
+      weakConcepts = perfMap.concepts
+        .filter((c: any) => c.performance === 'WEAK' || c.performance === 'DEVELOPING')
+        .map((c: any) => c.conceptTag);
+    }
 
     // 6. Send to RAG
     let tutorResult: any;
@@ -856,24 +846,30 @@ Recommended Topics Count: ${recommendedTopics.length}`);
       throw new HttpException(`Tutor error: ${e.message}`, 500);
     }
 
-    // 7. Log interaction (only if topic_id is available or fetch first topic)
-    const validTopicId = topic_id || (await this.prisma.topic.findFirst({ where: { course_id: courseId } }))?.topic_id;
-
-    if (validTopicId) {
-      await this.prisma.learningActivity.create({
-        data: {
-          student_id: studentId,
-          course_id: courseId,
-          topic_id: validTopicId,
-          activity_type: 'RESOURCE_PROGRESS',
-          metadata: {
-             type: 'TUTOR_INTERACTION',
-             query: query,
-             sources: tutorResult.sources?.length || 0
-          }
+    // 7. Log interaction asynchronously without blocking the client response
+    (async () => {
+      try {
+        const validTopicId = topic_id || (await this.prisma.topic.findFirst({ where: { course_id: courseId } }))?.topic_id;
+        if (validTopicId) {
+          await this.prisma.learningActivity.create({
+            data: {
+              student_id: studentId,
+              course_id: courseId,
+              topic_id: validTopicId,
+              activity_type: 'RESOURCE_PROGRESS',
+              metadata: {
+                 type: 'TUTOR_INTERACTION',
+                 query: query,
+                 sources: tutorResult?.sources?.length || 0
+              }
+            }
+          });
         }
-      });
-    }
+      } catch (err) {
+        // Non-blocking interaction log error
+      }
+    })();
+
     return tutorResult;
   }
 }

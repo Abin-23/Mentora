@@ -262,6 +262,27 @@ async def query_tutor(request: TutorRequest):
     """
     Context-Aware AI Tutor endpoint.
     """
+    # Fast path for basic conversational greetings/thanks
+    clean_query = request.query.strip().lower()
+    greetings = {"hi", "hello", "hey", "hola", "greetings", "good morning", "good afternoon", "good evening"}
+    thanks = {"thanks", "thank you", "thx", "appreciate it", "great thanks", "many thanks"}
+    if clean_query in greetings or clean_query.rstrip("!?.") in greetings:
+        return {
+            "answer": "Hello! I am your AI Tutor for this course. How can I help you understand this topic today?",
+            "keyPoints": ["Ask questions about course concepts", "Request practical examples or practice problems", "Get personalized explanations matching your pace"],
+            "example": None,
+            "practicePrompt": None,
+            "sources": []
+        }
+    if clean_query in thanks or clean_query.rstrip("!?.") in thanks:
+        return {
+            "answer": "You're very welcome! Keep up the great work. Let me know whenever you have more questions or need clarification.",
+            "keyPoints": [],
+            "example": None,
+            "practicePrompt": None,
+            "sources": []
+        }
+
     # 1. Embed the query
     from ai_client import generate_embeddings
     try:
@@ -286,7 +307,7 @@ async def query_tutor(request: TutorRequest):
     try:
         results = query_chroma(
             query_embeddings=[query_embedding],
-            n_results=5,
+            n_results=3,
             where_filter=where_filter
         )
         if results and results.get("documents") and results["documents"][0]:
@@ -300,7 +321,7 @@ async def query_tutor(request: TutorRequest):
         try:
             results = query_chroma(
                 query_embeddings=[query_embedding],
-                n_results=5,
+                n_results=3,
                 where_filter={"courseId": request.course_id}
             )
             if results and results.get("documents") and results["documents"][0]:

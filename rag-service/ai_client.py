@@ -22,10 +22,10 @@ def get_models_for_key(api_key):
     try:
         models = [m.name.replace("models/", "") for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         preferred = [
-            "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash",
-            "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3-flash",
-            "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2-flash", "gemini-2-flash-lite",
+            "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.5-flash",
+            "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite",
             "gemini-1.5-flash-8b", "gemini-1.5-flash", "gemini-flash-latest", 
+            "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3-flash",
             "gemini-3.1-pro", "gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.0-pro"
         ]
         models.sort(key=lambda m: preferred.index(m) if m in preferred else 999)
@@ -33,7 +33,7 @@ def get_models_for_key(api_key):
         return models
     except Exception as e:
         print(f"Failed to list models: {e}")
-        return ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        return ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]
 
 def generate_embeddings(text: str) -> list[float]:
     """
@@ -122,9 +122,9 @@ def generate_chat_response(query: str, context: str) -> str:
     """
     Generates a response using Gemini based on the provided context.
     """
-    try:
-        model = genai.GenerativeModel('gemini-3.6-flash')
-        prompt = f"""You are Mentora's AI Tutor, a helpful and knowledgeable learning assistant.
+    api_keys = [os.getenv("GEMINI_API_KEY"), os.getenv("GEMINI_API_KEY_2")]
+    api_keys = [k for k in api_keys if k]
+    prompt = f"""You are Mentora's AI Tutor, a helpful and knowledgeable learning assistant.
 You have been provided with the following context from the student's course materials. 
 Use this context to answer the student's question accurately. If the answer is not contained in the context, 
 you can use your general knowledge, but prioritize the course material.
@@ -135,14 +135,22 @@ you can use your general knowledge, but prioritize the course material.
 
 Student's Question: {query}
 """
-        response = model.generate_content(
-            prompt,
-            request_options={"timeout": 15}
-        )
-        return response.text
-    except Exception as e:
-        print(f"Error generating chat response: {e}")
-        return "I'm sorry, I encountered an error while trying to process your request."
+    for api_key in api_keys:
+        models = get_models_for_key(api_key)
+        genai.configure(api_key=api_key)
+        for model_name in models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(
+                    prompt,
+                    request_options={"timeout": 6}
+                )
+                return response.text
+            except Exception as e:
+                print(f"Error generating chat response with {model_name}: {e}")
+                continue
+
+    return "I'm sorry, I encountered an error while trying to process your request."
 
 def generate_tutor_response(query: str, context: str, proficiency: str, teaching_pref: str, weak_concepts: list) -> str:
     """
@@ -201,7 +209,7 @@ RESPONSE FORMAT (Return VALID JSON ONLY, do not wrap in markdown blocks like ```
                     generation_config=genai.types.GenerationConfig(
                         response_mime_type="application/json",
                     ),
-                    request_options={"timeout": 15}
+                    request_options={"timeout": 6}
                 )
                 return response.text
             except ResourceExhausted:
@@ -236,7 +244,7 @@ def generate_lesson_outline(topic_title: str, context: str) -> list[str]:
     Example: ["Introduction to X", "How X works", "Advanced X techniques", "Summary"]
     """
     
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
+    models_to_try = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-1.5-flash"]
     for model_name in models_to_try:
         try:
             model = genai.GenerativeModel(model_name)
@@ -245,7 +253,7 @@ def generate_lesson_outline(topic_title: str, context: str) -> list[str]:
                 generation_config=genai.types.GenerationConfig(
                     response_mime_type="application/json",
                 ),
-                request_options={"timeout": 15}
+                request_options={"timeout": 8}
             )
             data = json.loads(response.text)
             if isinstance(data, list) and len(data) > 0:
