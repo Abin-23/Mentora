@@ -1,6 +1,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { StartProgressDto } from './dto/start-progress.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { EvaluatePracticeDto } from './dto/evaluate-practice.dto';
 export declare class LearningProgressService {
     private readonly prisma;
     constructor(prisma: PrismaService);
@@ -71,6 +72,14 @@ export declare class LearningProgressService {
         activity_type: import(".prisma/client").$Enums.ActivityType;
         activity_id: number;
     })[]>;
+    private get ragServiceUrl();
+    evaluateAndLogPractice(userId: number, dto: EvaluatePracticeDto): Promise<{
+        isCorrect: boolean;
+        score: number;
+        status: string;
+        feedback: string;
+        hints: string[];
+    }>;
     logBlockInteraction(userId: number, dto: any): Promise<{
         created_at: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;

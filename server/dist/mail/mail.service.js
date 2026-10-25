@@ -38,11 +38,15 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var MailService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MailService = void 0;
 const common_1 = require("@nestjs/common");
 const nodemailer = __importStar(require("nodemailer"));
+const axios_1 = __importDefault(require("axios"));
 let MailService = MailService_1 = class MailService {
     logger = new common_1.Logger(MailService_1.name);
     getTransporter(port) {
@@ -58,9 +62,9 @@ let MailService = MailService_1 = class MailService {
                 user,
                 pass,
             },
-            connectionTimeout: 10000,
-            greetingTimeout: 10000,
-            socketTimeout: 15000,
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 5000,
         });
     }
     resolveFrontendUrl(customUrl) {
@@ -77,24 +81,104 @@ let MailService = MailService_1 = class MailService {
             return await primaryTransporter.sendMail(mailOptions);
         }
         catch (primaryErr) {
-            this.logger.warn(`Primary SMTP attempt on port ${configuredPort} failed: ${primaryErr.message}. Trying port 465 SSL fallback...`);
             if (configuredPort !== 465) {
+                this.logger.warn(`Primary SMTP attempt on port ${configuredPort} failed: ${primaryErr.message}. Trying port 465 SSL fallback...`);
                 const fallbackTransporter = this.getTransporter(465);
                 return await fallbackTransporter.sendMail(mailOptions);
             }
             throw primaryErr;
         }
     }
+    async dispatchEmail(options) {
+        const { to, name, subject, html, text, actionLink, purpose } = options;
+        const resendApiKey = process.env.RESEND_API_KEY?.trim();
+        if (resendApiKey) {
+            try {
+                const from = process.env.RESEND_FROM ||
+                    process.env.SMTP_FROM ||
+                    'Mentora <onboarding@resend.dev>';
+                const response = await axios_1.default.post('https://api.resend.com/emails', {
+                    from,
+                    to: [to],
+                    subject,
+                    html,
+                    text,
+                }, {
+                    headers: {
+                        Authorization: `Bearer ${resendApiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 8000,
+                });
+                this.logger.log(`[Resend API] Successfully delivered ${purpose} email to ${to} (ID: ${response.data?.id})`);
+                return true;
+            }
+            catch (resendError) {
+                const msg = resendError.response?.data?.message || resendError.message;
+                this.logger.error(`[Resend API] Delivery to ${to} failed: ${msg}`);
+            }
+        }
+        const brevoApiKey = process.env.BREVO_API_KEY?.trim();
+        if (brevoApiKey) {
+            try {
+                const fromEmail = process.env.BREVO_FROM_EMAIL ||
+                    process.env.SMTP_USER?.replace(/["']/g, '').trim() ||
+                    'mentoralearning0@gmail.com';
+                const response = await axios_1.default.post('https://api.brevo.com/v3/smtp/email', {
+                    sender: { name: 'Mentora', email: fromEmail },
+                    to: [{ email: to, name }],
+                    subject,
+                    htmlContent: html,
+                    textContent: text,
+                }, {
+                    headers: {
+                        'api-key': brevoApiKey,
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 8000,
+                });
+                this.logger.log(`[Brevo API] Successfully delivered ${purpose} email to ${to} (ID: ${response.data?.messageId})`);
+                return true;
+            }
+            catch (brevoError) {
+                const msg = brevoError.response?.data?.message || brevoError.message;
+                this.logger.error(`[Brevo API] Delivery to ${to} failed: ${msg}`);
+            }
+        }
+        const user = process.env.SMTP_USER?.replace(/["']/g, '').trim();
+        if (user && user !== 'your_email@gmail.com') {
+            try {
+                const mailOptions = {
+                    from: process.env.SMTP_FROM || `"Mentora" <${user}>`,
+                    replyTo: user,
+                    to,
+                    subject,
+                    html,
+                    text,
+                };
+                const info = await this.sendMailWithFallback(mailOptions);
+                this.logger.log(`[SMTP] Successfully sent ${purpose} email to ${to}: ${info?.messageId || 'OK'}`);
+                return true;
+            }
+            catch (smtpError) {
+                this.logger.error(`[SMTP Error] Delivery to ${to} failed (${smtpError.message}). Note: Render Free tier blocks outbound TCP on SMTP ports 25, 465, and 587.`);
+            }
+        }
+        else {
+            this.logger.warn(`[No Mailer Configured] Set RESEND_API_KEY, BREVO_API_KEY, or SMTP_USER in environment.`);
+        }
+        this.logger.warn(`[ACTION LINK - ${purpose.toUpperCase()}] To: ${to} | Link: ${actionLink}`);
+        return false;
+    }
     async sendPasswordResetEmail(to, token, expiresMs, customFrontendUrl) {
         const frontendUrl = this.resolveFrontendUrl(customFrontendUrl);
         const expiresParam = expiresMs ? `&expires=${expiresMs}` : '';
         const resetLink = `${frontendUrl}/reset-password?token=${token}${expiresParam}`;
-        const user = process.env.SMTP_USER?.replace(/["']/g, '').trim();
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"Mentora" <${user}>`,
-            replyTo: user,
             to,
             subject: 'Reset your Mentora password',
+            actionLink: resetLink,
+            purpose: 'Password Reset',
             html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1c1917; background-color: #fafaf9; border-radius: 16px; border: 1px solid #e7e5e4;">
           <div style="margin-bottom: 24px;">
@@ -117,30 +201,19 @@ let MailService = MailService_1 = class MailService {
       `,
             text: `Mentora Password Reset\n\nHello,\nWe received a request to reset your password.\n\nPlease copy and paste this link into your browser to reset your password:\n${resetLink}\n\nThis link will expire in 1 hour.\nIf you didn't request a password reset, you can safely ignore this email.`,
         };
-        try {
-            if (!user || user === 'your_email@gmail.com') {
-                this.logger.warn('SMTP credentials not configured. Email not sent. Please update .env.');
-                this.logger.log(`Generated Link (Simulated): ${resetLink}`);
-                return;
-            }
-            const info = await this.sendMailWithFallback(mailOptions);
-            this.logger.log(`Password reset email sent to ${to}: ${info?.messageId || 'OK'}`);
-        }
-        catch (error) {
-            this.logger.error(`Error sending email to ${to}`, error);
-            throw error;
-        }
+        const success = await this.dispatchEmail(mailOptions);
+        return { success, resetLink };
     }
     async sendAdminWelcomeEmail(to, name, token, expiresMs, customFrontendUrl) {
         const frontendUrl = this.resolveFrontendUrl(customFrontendUrl);
         const expiresParam = expiresMs ? `&expires=${expiresMs}` : '';
         const resetLink = `${frontendUrl}/reset-password?token=${token}${expiresParam}`;
-        const user = process.env.SMTP_USER?.replace(/["']/g, '').trim();
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"Mentora" <${user}>`,
-            replyTo: user,
             to,
+            name,
             subject: 'Welcome to Mentora - Action Required',
+            actionLink: resetLink,
+            purpose: 'Course Admin Provisioning',
             html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1c1917; background-color: #fafaf9; border-radius: 16px; border: 1px solid #e7e5e4;">
           <div style="margin-bottom: 24px;">
@@ -161,19 +234,8 @@ let MailService = MailService_1 = class MailService {
       `,
             text: `Welcome to Mentora, ${name}!\n\nA new Course Admin account has been created for you by the System Administrator.\n\nTo securely set up your account and choose your password, please copy and paste this link into your browser:\n${resetLink}\n\nThis link will expire in 24 hours.`,
         };
-        try {
-            if (!user || user === 'your_email@gmail.com') {
-                this.logger.warn('SMTP credentials not configured. Email not sent. Please update .env.');
-                this.logger.log(`Generated Setup Link (Simulated) for ${to}: ${resetLink}`);
-                return;
-            }
-            const info = await this.sendMailWithFallback(mailOptions);
-            this.logger.log(`Admin welcome email sent to ${to}: ${info?.messageId || 'OK'}`);
-        }
-        catch (error) {
-            this.logger.error(`Error sending email to ${to}`, error);
-            throw error;
-        }
+        const success = await this.dispatchEmail(mailOptions);
+        return { success, resetLink };
     }
 };
 exports.MailService = MailService;

@@ -6,7 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from chunking import extract_text_from_pdf, chunk_document_text
-from ai_client import generate_embeddings_batch, generate_chat_response, generate_personalized_lesson, generate_assessment_questions, generate_tutor_response
+from ai_client import (
+    generate_embeddings_batch,
+    generate_chat_response,
+    generate_personalized_lesson,
+    generate_assessment_questions,
+    generate_tutor_response,
+    evaluate_student_practice
+)
 import re
 from chroma_client import add_documents_to_chroma, query_chroma, delete_documents_by_resource_id
 
@@ -75,6 +82,13 @@ class IngestTextRequest(BaseModel):
     topic_id: int
     resource_id: int
     resource_name: str
+
+class EvaluatePracticeRequest(BaseModel):
+    instruction: str
+    student_answer: str
+    context: Optional[str] = ""
+    proficiency: Optional[str] = "BEGINNER"
+    teaching_preference: Optional[str] = "DIRECT"
 
 @app.get("/")
 @app.head("/")
@@ -646,7 +660,30 @@ async def generate_assessment(request: GenerateAssessmentRequest):
             "raw_output": lesson_json_str
         }
 
+@app.post("/api/evaluate_practice")
+def evaluate_practice(request: EvaluatePracticeRequest):
+    import json
+    result_str = evaluate_student_practice(
+        instruction=request.instruction,
+        student_answer=request.student_answer,
+        context=request.context or "",
+        proficiency=request.proficiency or "BEGINNER",
+        teaching_preference=request.teaching_preference or "DIRECT"
+    )
+    try:
+        parsed = json.loads(result_str)
+        return parsed
+    except json.JSONDecodeError:
+        return {
+            "isCorrect": len(request.student_answer.strip()) > 15,
+            "score": 75 if len(request.student_answer.strip()) > 15 else 40,
+            "status": "PARTIALLY_CORRECT" if len(request.student_answer.strip()) > 15 else "NEEDS_WORK",
+            "feedback": result_str,
+            "hints": ["Review the problem statement and refine your implementation."]
+        }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+

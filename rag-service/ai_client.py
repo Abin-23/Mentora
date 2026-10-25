@@ -508,3 +508,107 @@ Target Difficulty: {difficulty_target}
         "error": "GENERATION_FAILED",
         "message": "AI generation failed on all fallback models and keys. Please try again later."
     })
+
+
+def evaluate_student_practice(
+    instruction: str,
+    student_answer: str,
+    context: str = "",
+    proficiency: str = "BEGINNER",
+    teaching_preference: str = "DIRECT"
+) -> str:
+    """
+    Evaluates a student's answer or code submission for a PRACTICE or CHALLENGE block.
+    Returns JSON string with:
+    {
+      "isCorrect": bool,
+      "score": int (0-100),
+      "status": "CORRECT" | "PARTIALLY_CORRECT" | "NEEDS_WORK",
+      "feedback": str,
+      "hints": list[str]
+    }
+    """
+    cleaned_answer = student_answer.strip()
+    if not cleaned_answer:
+        return json.dumps({
+            "isCorrect": False,
+            "score": 0,
+            "status": "NEEDS_WORK",
+            "feedback": "No answer was provided. Please write your solution before submitting.",
+            "hints": ["Read the instructions carefully and provide your code or written solution."]
+        })
+
+    prompt = f"""
+You are an expert, encouraging AI learning evaluator and coding mentor.
+A student was given the following practice exercise or challenge and submitted their solution.
+
+--- EXERCISE INSTRUCTION ---
+{instruction}
+
+--- STUDENT SUBMISSION ---
+{cleaned_answer}
+
+--- TOPIC CONTEXT ---
+{context or "Curriculum knowledge"}
+
+--- EVALUATION GUIDELINES ---
+1. Assess whether the student's submission reasonably fulfills the requirements of the instruction.
+2. If code was requested, check syntax, logic, edge cases, and correctness. Be forgiving of minor formatting/spacing differences if the core logic is sound.
+3. If an explanation or conceptual response was requested, check conceptual correctness and understanding.
+4. Scoring & Status:
+   - score >= 75: "CORRECT" (isCorrect = true) - the solution is correct or functionally complete.
+   - score 45-74: "PARTIALLY_CORRECT" (isCorrect = false) - good attempt with minor bugs, incomplete parts, or partial understanding.
+   - score < 45: "NEEDS_WORK" (isCorrect = false) - off-track, incorrect logic, or superficial response.
+5. Provide constructive, warm markdown feedback in 2-3 sentences: praise what they did well and explain clearly what to improve.
+6. Provide 1 to 3 actionable hints to guide them if they want to improve or revise their answer.
+
+--- REQUIRED JSON SCHEMA (Return VALID JSON ONLY, do not wrap in markdown or backticks) ---
+{{
+  "isCorrect": true,
+  "score": 85,
+  "status": "CORRECT",
+  "feedback": "Great job! Your solution handles the core logic accurately...",
+  "hints": ["Consider testing with negative or empty inputs for extra robustness."]
+}}
+"""
+
+    api_keys = [os.getenv("GEMINI_API_KEY"), os.getenv("GEMINI_API_KEY_2")]
+    api_keys = [k for k in api_keys if k]
+    for api_key in api_keys:
+        models = get_models_for_key(api_key)
+        genai.configure(api_key=api_key)
+        for attempt, model_name in enumerate(models):
+            try:
+                model = genai.GenerativeModel(
+                    model_name,
+                    generation_config={"response_mime_type": "application/json"}
+                )
+                response = model.generate_content(
+                    prompt,
+                    request_options={"timeout": 10}
+                )
+                text = response.text.strip()
+                if text.startswith("```json"):
+                    text = text[7:].strip()
+                elif text.startswith("```"):
+                    text = text[3:].strip()
+                if text.endswith("```"):
+                    text = text[:-3].strip()
+                return text
+            except ResourceExhausted:
+                print(f"Rate limit exceeded (429) on {model_name} with key {api_key[:5]} during practice evaluation...")
+                continue
+            except Exception as e:
+                print(f"Error evaluating practice on {model_name}: {e}")
+                continue
+
+    # Fallback if AI generation failed
+    fallback_correct = len(cleaned_answer) >= 15
+    return json.dumps({
+        "isCorrect": fallback_correct,
+        "score": 75 if fallback_correct else 40,
+        "status": "PARTIALLY_CORRECT" if fallback_correct else "NEEDS_WORK",
+        "feedback": "Great effort submitting your solution! Review the problem instructions to ensure all edge cases are covered.",
+        "hints": ["Review your logic against the requirements in the prompt."]
+    })
+

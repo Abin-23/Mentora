@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -49,10 +50,11 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const crypto = __importStar(require("crypto"));
 const mail_service_1 = require("../mail/mail.service");
-let AuthService = class AuthService {
+let AuthService = AuthService_1 = class AuthService {
     prisma;
     jwtService;
     mailService;
+    logger = new common_1.Logger(AuthService_1.name);
     constructor(prisma, jwtService, mailService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
@@ -136,7 +138,12 @@ let AuthService = class AuthService {
                 },
             });
             const targetFrontendUrl = frontendUrl || originUrl;
-            await this.mailService.sendPasswordResetEmail(email, resetToken, resetTokenExpires.getTime(), targetFrontendUrl);
+            try {
+                await this.mailService.sendPasswordResetEmail(email, resetToken, resetTokenExpires.getTime(), targetFrontendUrl);
+            }
+            catch (emailError) {
+                this.logger.error(`[Forgot Password] Failed to dispatch email to ${email}: ${emailError?.message}`);
+            }
         }
         return {
             message: 'If that email exists, a password reset link has been sent.',
@@ -218,7 +225,7 @@ let AuthService = class AuthService {
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         jwt_1.JwtService,

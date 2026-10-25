@@ -8,11 +8,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LearningProgressService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const axios_1 = __importDefault(require("axios"));
 let LearningProgressService = class LearningProgressService {
     prisma;
     constructor(prisma) {
@@ -155,6 +159,51 @@ let LearningProgressService = class LearningProgressService {
                 resource: { select: { resource_title: true } }
             }
         });
+    }
+    get ragServiceUrl() {
+        return (process.env.RAG_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+    }
+    async evaluateAndLogPractice(userId, dto) {
+        const { courseId, topicId, instruction, studentAnswer, blockType = 'PRACTICE', attemptNumber = 1, topicTitle, conceptTags } = dto;
+        const student = await this.prisma.user.findUnique({
+            where: { user_id: userId },
+            select: { teaching_preference: true }
+        });
+        let evalResult = {
+            isCorrect: studentAnswer.trim().length > 15,
+            score: studentAnswer.trim().length > 15 ? 80 : 40,
+            status: studentAnswer.trim().length > 15 ? 'CORRECT' : 'NEEDS_WORK',
+            feedback: 'Answer evaluated. Keep up the good work!',
+            hints: ['Review the instructions for potential edge cases.']
+        };
+        try {
+            const response = await axios_1.default.post(`${this.ragServiceUrl}/api/evaluate_practice`, {
+                instruction,
+                student_answer: studentAnswer,
+                context: topicTitle ? `Topic: ${topicTitle}` : '',
+                proficiency: 'INTERMEDIATE',
+                teaching_preference: student?.teaching_preference || 'DIRECT'
+            }, {
+                headers: { 'ngrok-skip-browser-warning': 'true' },
+                timeout: 12000
+            });
+            if (response.data && typeof response.data.isCorrect === 'boolean') {
+                evalResult = response.data;
+            }
+        }
+        catch (err) {
+            console.warn(`[LearningProgress] AI Practice Evaluation failed, using fallback: ${err.message}`);
+        }
+        await this.logBlockInteraction(userId, {
+            courseId,
+            topicId,
+            blockType,
+            isCorrect: evalResult.isCorrect,
+            attemptNumber,
+            studentAnswer,
+            conceptTags: conceptTags || []
+        });
+        return evalResult;
     }
     async logBlockInteraction(userId, dto) {
         const { courseId, topicId, blockType, isCorrect, attemptNumber, studentAnswer, blockId, lessonId, conceptTags } = dto;

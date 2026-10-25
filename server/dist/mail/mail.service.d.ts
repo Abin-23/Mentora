@@ -3,6 +3,13 @@ export declare class MailService {
     private getTransporter;
     private resolveFrontendUrl;
     private sendMailWithFallback;
-    sendPasswordResetEmail(to: string, token: string, expiresMs?: number, customFrontendUrl?: string): Promise<void>;
-    sendAdminWelcomeEmail(to: string, name: string, token: string, expiresMs: number, customFrontendUrl?: string): Promise<void>;
+    private dispatchEmail;
+    sendPasswordResetEmail(to: string, token: string, expiresMs?: number, customFrontendUrl?: string): Promise<{
+        success: boolean;
+        resetLink: string;
+    }>;
+    sendAdminWelcomeEmail(to: string, name: string, token: string, expiresMs: number, customFrontendUrl?: string): Promise<{
+        success: boolean;
+        resetLink: string;
+    }>;
 }

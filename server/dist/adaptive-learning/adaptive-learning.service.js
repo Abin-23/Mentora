@@ -215,6 +215,8 @@ Recommended Topics Count: ${recommendedTopics.length}`);
                 teaching_preference: teachingPreference,
                 targeted_concepts: targetedConcepts,
                 valid_resource_ids: aiSourceIds
+            }, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
             responseData = response.data;
         }
@@ -224,7 +226,23 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         }
         let { lesson, sources } = responseData;
         try {
-            const parsedLesson = JSON.parse(lesson);
+            let parsedLesson = null;
+            try {
+                parsedLesson = typeof lesson === 'string' ? JSON.parse(lesson) : lesson;
+            }
+            catch {
+                parsedLesson = {
+                    title: topic.topic_title,
+                    blocks: [
+                        {
+                            type: 'CONCEPT',
+                            title: topic.topic_title,
+                            content: typeof lesson === 'string' ? lesson : 'Welcome to this topic lesson.'
+                        }
+                    ]
+                };
+                lesson = JSON.stringify(parsedLesson);
+            }
             if (parsedLesson && Array.isArray(parsedLesson.blocks)) {
                 for (const block of parsedLesson.blocks) {
                     if (block.visual && block.visual.query && !block.visual.url) {
@@ -671,48 +689,45 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         const { topic_id, query } = body;
         if (!query)
             throw new Error('Query is required');
-        const enrollment = await this.prisma.enrollment.findFirst({
-            where: { user_id: studentId, course_id: courseId }
-        });
+        const [enrollment, topic, student, stateResult, perfMap] = await Promise.all([
+            this.prisma.enrollment.findFirst({
+                where: { user_id: studentId, course_id: courseId }
+            }),
+            topic_id ? this.prisma.topic.findFirst({
+                where: { topic_id: topic_id, course_id: courseId }
+            }) : Promise.resolve(null),
+            this.prisma.user.findUnique({
+                where: { user_id: studentId },
+                select: { teaching_preference: true }
+            }),
+            topic_id ? this.neo4jService.read(`
+        MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
+        RETURN k.proficiency AS proficiency
+        `, { studentId: neo4j_driver_1.default.int(studentId), topicId: neo4j_driver_1.default.int(topic_id) }).catch(() => ({ records: [] })) : Promise.resolve({ records: [] }),
+            this.learningProgressService.getConceptPerformance(studentId, courseId).catch(() => null)
+        ]);
         if (!enrollment)
             throw new common_1.NotFoundException('Student is not enrolled in this course.');
-        if (topic_id) {
-            const topic = await this.prisma.topic.findFirst({
-                where: { topic_id: topic_id, course_id: courseId }
-            });
-            if (!topic)
-                throw new common_1.NotFoundException('Topic does not belong to this course.');
-        }
-        const student = await this.prisma.user.findUnique({
-            where: { user_id: studentId },
-            select: { teaching_preference: true }
-        });
-        let proficiency = 'UNASSESSED';
-        if (topic_id) {
-            const stateResult = await this.neo4jService.read(`
-         MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic {topicId: toInteger($topicId)})
-         RETURN k.proficiency AS proficiency
-         `, { studentId: neo4j_driver_1.default.int(studentId), topicId: neo4j_driver_1.default.int(topic_id) });
-            if (stateResult.records.length > 0) {
-                proficiency = stateResult.records[0].get('proficiency');
-            }
-        }
+        if (topic_id && !topic)
+            throw new common_1.NotFoundException('Topic does not belong to this course.');
+        const proficiency = (stateResult?.records && stateResult.records.length > 0)
+            ? stateResult.records[0].get('proficiency')
+            : 'UNASSESSED';
         let weakConcepts = [];
-        try {
-            const perfMap = await this.learningProgressService.getConceptPerformance(studentId, courseId);
-            if (perfMap && perfMap.concepts) {
-                weakConcepts = perfMap.concepts
-                    .filter((c) => c.performance === 'WEAK' || c.performance === 'DEVELOPING')
-                    .map((c) => c.conceptTag);
-            }
+        if (perfMap && perfMap.concepts) {
+            weakConcepts = perfMap.concepts
+                .filter((c) => c.performance === 'WEAK' || c.performance === 'DEVELOPING')
+                .map((c) => c.conceptTag);
         }
-        catch (e) { }
         let tutorResult;
         try {
             const ragUrl = this.ragServiceUrl;
             const ragResponse = await fetch(`${ragUrl}/api/tutor`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
                 body: JSON.stringify({
                     query,
                     course_id: courseId,
@@ -730,22 +745,28 @@ Recommended Topics Count: ${recommendedTopics.length}`);
         catch (e) {
             throw new common_1.HttpException(`Tutor error: ${e.message}`, 500);
         }
-        const validTopicId = topic_id || (await this.prisma.topic.findFirst({ where: { course_id: courseId } }))?.topic_id;
-        if (validTopicId) {
-            await this.prisma.learningActivity.create({
-                data: {
-                    student_id: studentId,
-                    course_id: courseId,
-                    topic_id: validTopicId,
-                    activity_type: 'RESOURCE_PROGRESS',
-                    metadata: {
-                        type: 'TUTOR_INTERACTION',
-                        query: query,
-                        sources: tutorResult.sources?.length || 0
-                    }
+        (async () => {
+            try {
+                const validTopicId = topic_id || (await this.prisma.topic.findFirst({ where: { course_id: courseId } }))?.topic_id;
+                if (validTopicId) {
+                    await this.prisma.learningActivity.create({
+                        data: {
+                            student_id: studentId,
+                            course_id: courseId,
+                            topic_id: validTopicId,
+                            activity_type: 'RESOURCE_PROGRESS',
+                            metadata: {
+                                type: 'TUTOR_INTERACTION',
+                                query: query,
+                                sources: tutorResult?.sources?.length || 0
+                            }
+                        }
+                    });
                 }
-            });
-        }
+            }
+            catch (err) {
+            }
+        })();
         return tutorResult;
     }
 };

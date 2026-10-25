@@ -6,6 +6,7 @@ export declare class AuthService {
     private prisma;
     private jwtService;
     private mailService;
+    private readonly logger;
     constructor(prisma: PrismaService, jwtService: JwtService, mailService: MailService);
     register(registerDto: RegisterDto): Promise<{
         access_token: string;

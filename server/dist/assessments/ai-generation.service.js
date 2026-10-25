@@ -82,7 +82,10 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                     };
                     const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': 'true',
+                        },
                         body: JSON.stringify(payload),
                         signal: controller.signal
                     });
@@ -287,7 +290,10 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                 try {
                     const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': 'true',
+                        },
                         body: JSON.stringify(payload),
                         signal: controller.signal
                     });
@@ -305,8 +311,9 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                     const newlyGeneratedQuestions = data.questions;
                     for (const q of newlyGeneratedQuestions) {
                         const questionText = q.question_text || q.question;
-                        const qDifficulty = q.difficulty || q.difficulty_level || 'MEDIUM';
-                        if (!targetDifficulties.includes(qDifficulty)) {
+                        const qDifficulty = (q.difficulty || q.difficulty_level || 'MEDIUM').toUpperCase();
+                        const targetDifficultiesUpper = targetDifficulties.map(d => d.toUpperCase());
+                        if (!targetDifficultiesUpper.includes(qDifficulty)) {
                             this.logger.warn(`Rejected question: Invalid difficulty ${qDifficulty}`);
                             continue;
                         }
@@ -335,7 +342,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                             this.logger.warn(`Rejected question: Missing source metadata`);
                             continue;
                         }
-                        const hasValidSource = q.sources.some((s) => s.resourceId && validResourceIds.includes(s.resourceId));
+                        const hasValidSource = validResourceIds.length === 0 || q.sources.some((s) => s.resourceId && validResourceIds.includes(s.resourceId));
                         if (!hasValidSource) {
                             this.logger.warn(`Rejected question: No approved RAG valid_resource_ids found in sources`);
                             continue;
@@ -453,7 +460,10 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                 try {
                     const res = await fetch(`${this.ragServiceUrl}/api/generate_assessment`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': 'true',
+                        },
                         body: JSON.stringify(payload),
                         signal: controller.signal
                     });
@@ -467,8 +477,8 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                         throw new Error('Invalid JSON format');
                     for (const q of data.questions) {
                         const questionText = q.question_text || q.question;
-                        const qDifficulty = q.difficulty || q.difficulty_level || 'MEDIUM';
-                        if (qDifficulty !== difficulty)
+                        const qDifficulty = (q.difficulty || q.difficulty_level || 'MEDIUM').toUpperCase();
+                        if (qDifficulty !== difficulty.toUpperCase())
                             continue;
                         if (!questionText || typeof questionText !== 'string' || questionText.trim().length < 10)
                             continue;
@@ -483,7 +493,7 @@ let AiGenerationService = AiGenerationService_1 = class AiGenerationService {
                             continue;
                         if (!q.sources || !Array.isArray(q.sources) || q.sources.length === 0)
                             continue;
-                        const hasValidSource = q.sources.some((s) => s.resourceId && validResourceIds.includes(s.resourceId));
+                        const hasValidSource = validResourceIds.length === 0 || q.sources.some((s) => s.resourceId && validResourceIds.includes(s.resourceId));
                         if (!hasValidSource)
                             continue;
                         const normalizedText = questionText.toLowerCase().trim();

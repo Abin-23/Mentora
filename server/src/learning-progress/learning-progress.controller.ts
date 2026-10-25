@@ -5,11 +5,17 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 import { LogBlockInteractionDto } from './dto/log-block-interaction.dto';
+import { EvaluatePracticeDto } from './dto/evaluate-practice.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('learning-progress')
 export class LearningProgressController {
   constructor(private readonly learningProgressService: LearningProgressService) {}
+
+  @Post('evaluate-practice')
+  evaluatePractice(@Req() req: any, @Body() dto: EvaluatePracticeDto) {
+    return this.learningProgressService.evaluateAndLogPractice(req.user.user_id, dto);
+  }
 
   @Post('block-interaction')
   logBlockInteraction(@Req() req: any, @Body() dto: LogBlockInteractionDto) {

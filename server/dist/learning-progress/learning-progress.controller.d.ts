@@ -2,9 +2,17 @@ import { LearningProgressService } from './learning-progress.service';
 import { StartProgressDto } from './dto/start-progress.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { LogBlockInteractionDto } from './dto/log-block-interaction.dto';
+import { EvaluatePracticeDto } from './dto/evaluate-practice.dto';
 export declare class LearningProgressController {
     private readonly learningProgressService;
     constructor(learningProgressService: LearningProgressService);
+    evaluatePractice(req: any, dto: EvaluatePracticeDto): Promise<{
+        isCorrect: boolean;
+        score: number;
+        status: string;
+        feedback: string;
+        hints: string[];
+    }>;
     logBlockInteraction(req: any, dto: LogBlockInteractionDto): Promise<{
         created_at: Date;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;

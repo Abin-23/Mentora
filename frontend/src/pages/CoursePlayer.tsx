@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { useLearningProgress } from '../hooks/useLearningProgress';
@@ -80,6 +80,16 @@ export default function CoursePlayer() {
   const [practiceAnswers, setPracticeAnswers] = useState<Record<number, string>>({});
   const [submittedPracticeAnswers, setSubmittedPracticeAnswers] = useState<Record<number, string>>({});
   const [practiceAttemptCounts, setPracticeAttemptCounts] = useState<Record<number, number>>({});
+  
+  interface PracticeEvaluation {
+    isCorrect: boolean;
+    score: number;
+    status: 'CORRECT' | 'PARTIALLY_CORRECT' | 'NEEDS_WORK';
+    feedback: string;
+    hints?: string[];
+  }
+  const [practiceEvaluations, setPracticeEvaluations] = useState<Record<number, PracticeEvaluation>>({});
+  const [evaluatingPractice, setEvaluatingPractice] = useState<Record<number, boolean>>({});
   
   const [coachMessages, setCoachMessages] = useState<Record<number, string>>({});
   const [conceptPerformance, setConceptPerformance] = useState<Record<string, string>>({});
@@ -170,6 +180,7 @@ export default function CoursePlayer() {
           setPracticeAnswers(saved.practiceAnswers || {});
           setSubmittedPracticeAnswers(saved.submittedPracticeAnswers || {});
           setPracticeAttemptCounts(saved.practiceAttemptCounts || {});
+          setPracticeEvaluations(saved.practiceEvaluations || {});
           if (saved.isCompleted) {
             setAiCompletedTopics(prev => ({ ...prev, [activeTopicId]: true }));
           }
@@ -183,6 +194,7 @@ export default function CoursePlayer() {
           setPracticeAnswers({});
           setSubmittedPracticeAnswers({});
           setPracticeAttemptCounts({});
+          setPracticeEvaluations({});
         }
         isLoadedRef.current = activeTopicId;
       })
@@ -205,6 +217,7 @@ export default function CoursePlayer() {
         practiceAnswers,
         submittedPracticeAnswers,
         practiceAttemptCounts,
+        practiceEvaluations,
         isCompleted: aiCompletedTopics[activeTopicId] || false
       };
       
@@ -221,7 +234,7 @@ export default function CoursePlayer() {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [activeTopicId, course, token, API_URL, readProgress, activeBlockIndex, tryAnswers, submittedTryAnswers, tryAttemptCounts, practiceAnswers, submittedPracticeAnswers, practiceAttemptCounts, aiCompletedTopics]);
+  }, [activeTopicId, course, token, API_URL, readProgress, activeBlockIndex, tryAnswers, submittedTryAnswers, tryAttemptCounts, practiceAnswers, submittedPracticeAnswers, practiceAttemptCounts, practiceEvaluations, aiCompletedTopics]);
 
   // Sync state to localStorage to persist across refreshes
   useEffect(() => {
@@ -275,6 +288,25 @@ export default function CoursePlayer() {
       console.error('Failed to log block interaction:', err);
     }
   };
+
+  const refreshConceptPerformance = useCallback(() => {
+    if (token && activeTopicId && course?.course_id) {
+      fetch(`${API_URL}/learning-progress/concept-performance?courseId=${course.course_id}&topicId=${activeTopicId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.concepts) {
+          const perfMap: Record<string, string> = {};
+          data.concepts.forEach((c: any) => {
+            perfMap[c.conceptTag] = c.performance;
+          });
+          setConceptPerformance(perfMap);
+        }
+      })
+      .catch(err => console.error('Failed to fetch concept performance', err));
+    }
+  }, [API_URL, activeTopicId, course, token]);
 
   let parsedAiLesson: any = null;
   if (activeTopicId && aiLessonsData[activeTopicId]) {
@@ -587,32 +619,72 @@ export default function CoursePlayer() {
       case 'CHALLENGE':
         const isPracSubmitted = submittedPracticeAnswers[index] !== undefined;
         const currentAnswer = practiceAnswers[index] || '';
+        const isEvaluating = !!evaluatingPractice[index];
+        const evaluation = practiceEvaluations[index];
         
-          const handlePracticeSubmit = () => {
-          if (!currentAnswer.trim() || isPracSubmitted) return;
+        const handlePracticeSubmit = async () => {
+          if (!currentAnswer.trim() || isPracSubmitted || isEvaluating || !course) return;
           const attemptNum = (practiceAttemptCounts[index] || 0) + 1;
           
-          setPracticeAttemptCounts(prev => ({...prev, [index]: attemptNum}));
-          setSubmittedPracticeAnswers(prev => ({...prev, [index]: currentAnswer}));
-          
-          // Generate Coach Message
-          const pref = (user as any)?.teaching_preference || 'DIRECT';
-          let msg = '';
-          if (block.type === 'PRACTICE') {
-            msg = pref === 'DIRECT' ? "Great work practicing! You're ready for the next challenge." : "✓ Nice progress. You've completed the Practice stage. Keep it up!";
-          } else {
-            msg = "🚀 You're doing well. Great effort on this challenge!";
-          }
-          setCoachMessages(prev => ({...prev, [index]: msg}));
+          setEvaluatingPractice(prev => ({ ...prev, [index]: true }));
+          setPracticeAttemptCounts(prev => ({ ...prev, [index]: attemptNum }));
 
-          // isCorrect is undefined because we can't reliably grade arbitrary text answers without an AI call
-          logBlockInteraction(
-            block.type,
-            undefined,
-            attemptNum,
-            currentAnswer,
-            block.conceptTags
-          );
+          try {
+            const res = await fetch(`${API_URL}/learning-progress/evaluate-practice`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                courseId: course.course_id,
+                topicId: activeTopicId,
+                instruction: block.instruction || block.title,
+                studentAnswer: currentAnswer,
+                blockType: block.type,
+                attemptNumber: attemptNum,
+                topicTitle: activeTopicObj?.topic_title || '',
+                conceptTags: block.conceptTags || []
+              })
+            });
+
+            if (!res.ok) {
+              throw new Error(`Evaluation failed with status ${res.status}`);
+            }
+
+            const evalData: PracticeEvaluation = await res.json();
+            setPracticeEvaluations(prev => ({ ...prev, [index]: evalData }));
+            setSubmittedPracticeAnswers(prev => ({ ...prev, [index]: currentAnswer }));
+
+            // Coaching message tailored to AI score
+            let coachMsg = '';
+            if (evalData.status === 'CORRECT') {
+              coachMsg = "🌟 Brilliant solution! You've mastered this exercise.";
+              confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+            } else if (evalData.status === 'PARTIALLY_CORRECT') {
+              coachMsg = "⚡ Great attempt! You're very close—review the hints to reach 100%.";
+            } else {
+              coachMsg = "💡 Keep going! Check the guidance below and try revising your answer.";
+            }
+            setCoachMessages(prev => ({ ...prev, [index]: coachMsg }));
+
+            // Refresh Concept Performance so Mastery Radar updates live
+            refreshConceptPerformance();
+          } catch (err) {
+            console.error('Failed to evaluate practice answer', err);
+            // Fallback: record submission without breaking flow
+            setSubmittedPracticeAnswers(prev => ({ ...prev, [index]: currentAnswer }));
+            logBlockInteraction(
+              block.type,
+              true,
+              attemptNum,
+              currentAnswer,
+              block.conceptTags
+            );
+            refreshConceptPerformance();
+          } finally {
+            setEvaluatingPractice(prev => ({ ...prev, [index]: false }));
+          }
         };
 
         const handlePracticeRetry = () => {
@@ -626,60 +698,181 @@ export default function CoursePlayer() {
         return (
           <div className="group bg-gradient-to-br from-accent-neon/[0.08] to-accent-neon/[0.02] border border-accent-neon/30 p-8 rounded-3xl mb-8 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-accent-neon/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-accent-neon/20 transition-all duration-700"></div>
-            <h3 className="font-bold text-xl text-primary mb-5 flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-accent-neon/20 text-accent-neon flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined">{block.type === 'CHALLENGE' ? 'emoji_events' : 'fitness_center'}</span>
-              </div>
-              {block.title}
-            </h3>
-            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10" />}
-            <div className="prose prose-lg text-on-surface prose-p:leading-relaxed mb-8 relative z-10">
+            
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-5 relative z-10">
+              <h3 className="font-bold text-xl text-primary flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-neon/20 text-accent-neon flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined">{block.type === 'CHALLENGE' ? 'emoji_events' : 'fitness_center'}</span>
+                </div>
+                <span>{block.title}</span>
+              </h3>
+
+              {isPracSubmitted && evaluation && (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm ${
+                  evaluation.status === 'CORRECT'
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                    : evaluation.status === 'PARTIALLY_CORRECT'
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                    : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                }`}>
+                  <span className="material-symbols-outlined text-[15px]">
+                    {evaluation.status === 'CORRECT' ? 'verified' : evaluation.status === 'PARTIALLY_CORRECT' ? 'published_with_changes' : 'help'}
+                  </span>
+                  <span>{evaluation.status === 'CORRECT' ? 'Verified Solution' : evaluation.status === 'PARTIALLY_CORRECT' ? 'Partially Correct' : 'Needs Work'}</span>
+                  <span className="opacity-60">•</span>
+                  <span>{evaluation.score}/100</span>
+                </div>
+              )}
+            </div>
+
+            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10 mb-6" />}
+            
+            <div className="prose prose-lg text-on-surface prose-p:leading-relaxed mb-6 relative z-10">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.instruction}</ReactMarkdown>
             </div>
             
-            <div className="bg-white rounded-2xl border-2 border-outline-variant/30 overflow-hidden focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all shadow-inner mb-8 relative z-10">
-              <textarea 
-                className="w-full h-40 p-4 bg-transparent outline-none resize-none text-on-surface font-mono text-sm placeholder:text-text-secondary/50 placeholder:font-sans"
-                placeholder={`Type your ${block.type === 'CHALLENGE' ? 'solution' : 'code or answer'} here...`}
-                value={currentAnswer}
-                onChange={(e) => setPracticeAnswers(prev => ({...prev, [index]: e.target.value}))}
-                disabled={isPracSubmitted}
-                spellCheck={false}
-              ></textarea>
+            <div className="relative mb-6 z-10">
+              <div className="flex items-center justify-between text-xs font-semibold text-text-secondary mb-2 px-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-primary">code</span>
+                  Your {block.type === 'CHALLENGE' ? 'Challenge Solution' : 'Practice Code / Answer'}
+                </span>
+                {practiceAttemptCounts[index] ? (
+                  <span className="opacity-75">Attempt #{practiceAttemptCounts[index]}</span>
+                ) : null}
+              </div>
+
+              <div className="bg-white dark:bg-surface-container-lowest rounded-2xl border-2 border-outline-variant/30 overflow-hidden focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all shadow-inner">
+                <textarea 
+                  className="w-full h-44 p-4 bg-transparent outline-none resize-none text-on-surface font-mono text-sm placeholder:text-text-secondary/50 placeholder:font-sans disabled:opacity-85"
+                  placeholder={`Type your ${block.type === 'CHALLENGE' ? 'solution' : 'code or answer'} here...`}
+                  value={currentAnswer}
+                  onChange={(e) => setPracticeAnswers(prev => ({...prev, [index]: e.target.value}))}
+                  disabled={isPracSubmitted || isEvaluating}
+                  spellCheck={false}
+                ></textarea>
+              </div>
             </div>
             
             {!isPracSubmitted && (
-              <div className="flex justify-end">
+              <div className="flex justify-end relative z-10 mb-2">
                 <button
                   onClick={handlePracticeSubmit}
-                  disabled={!currentAnswer.trim()}
-                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  disabled={!currentAnswer.trim() || isEvaluating}
+                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-md hover:shadow-primary/20 active:scale-[0.99]"
                 >
-                  <span className="material-symbols-outlined text-sm">send</span> Submit {block.type === 'CHALLENGE' ? 'Challenge' : 'Practice'}
+                  {isEvaluating ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                      <span>Evaluating with AI Tutor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                      <span>Submit for AI Grading</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
             
             {isPracSubmitted && (
-              <div className="p-5 rounded-xl border bg-surface-container-highest border-outline-variant/50 animate-fade-in-up">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="font-bold flex items-center gap-2 mb-2 text-primary">
-                      <span className="material-symbols-outlined">assignment_turned_in</span>
-                      Submission Recorded!
+              <div className={`p-6 rounded-2xl border transition-all animate-fade-in-up relative z-10 mb-2 ${
+                evaluation?.status === 'CORRECT'
+                  ? 'bg-emerald-500/[0.06] border-emerald-500/30'
+                  : evaluation?.status === 'PARTIALLY_CORRECT'
+                  ? 'bg-amber-500/[0.06] border-amber-500/30'
+                  : evaluation?.status === 'NEEDS_WORK'
+                  ? 'bg-rose-500/[0.06] border-rose-500/30'
+                  : 'bg-surface-container-highest border-outline-variant/50'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-outline-variant/20 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${
+                      evaluation?.status === 'CORRECT'
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : evaluation?.status === 'PARTIALLY_CORRECT'
+                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        : evaluation?.status === 'NEEDS_WORK'
+                        ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      <span className="material-symbols-outlined">
+                        {evaluation?.status === 'CORRECT' 
+                          ? 'verified' 
+                          : evaluation?.status === 'PARTIALLY_CORRECT' 
+                          ? 'published_with_changes' 
+                          : evaluation?.status === 'NEEDS_WORK'
+                          ? 'help'
+                          : 'assignment_turned_in'}
+                      </span>
                     </div>
-                    <div className="text-sm text-text-secondary leading-relaxed">
-                      Great job completing this {block.type.toLowerCase()}! Your answer has been saved to your learning journey.
+                    <div>
+                      <div className="font-bold text-base text-on-surface flex items-center gap-2">
+                        {evaluation?.status === 'CORRECT' 
+                          ? 'Mastered / Correct Solution!' 
+                          : evaluation?.status === 'PARTIALLY_CORRECT' 
+                          ? 'Partially Correct Solution' 
+                          : evaluation?.status === 'NEEDS_WORK'
+                          ? 'Needs Refinement'
+                          : 'Submission Recorded!'}
+                      </div>
+                      <div className="text-xs text-text-secondary font-medium">
+                        {evaluation 
+                          ? `Graded in real-time by Mentora AI • Attempt #${practiceAttemptCounts[index] || 1}` 
+                          : 'Saved to your learning journey'}
+                      </div>
                     </div>
                   </div>
-                  
-                  <button 
-                    onClick={handlePracticeRetry}
-                    className="shrink-0 px-4 py-2 bg-white border border-outline-variant/30 text-text-secondary hover:bg-surface-container-lowest rounded-lg font-bold text-sm transition-colors"
-                  >
-                    Revise Answer
-                  </button>
+
+                  <div className="flex items-center gap-3">
+                    {evaluation?.score !== undefined && (
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+                        evaluation.score >= 75
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          : evaluation.score >= 45
+                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                          : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                      }`}>
+                        <span className="material-symbols-outlined text-[14px]">scoreboard</span>
+                        <span>Score: {evaluation.score}/100</span>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={handlePracticeRetry}
+                      className="px-3.5 py-1.5 bg-white dark:bg-surface-container-highest border border-outline-variant/30 text-on-surface hover:bg-surface-container-lowest rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">edit</span>
+                      <span>Revise Answer</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* AI Tutor Feedback formatted in Markdown */}
+                <div className="prose prose-sm max-w-none text-on-surface/90 leading-relaxed mb-3">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {evaluation?.feedback || 'Great job completing this practice! Your answer has been saved to your learning journey.'}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Targeted Actionable Hints */}
+                {evaluation?.hints && evaluation.hints.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-outline-variant/20">
+                    <div className="font-bold text-xs uppercase tracking-wider text-text-secondary mb-2 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-amber-500 text-[16px]">lightbulb</span>
+                      <span>Tutor Insights & Suggestions</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {evaluation.hints.map((hint: string, hIdx: number) => (
+                        <li key={hIdx} className="text-xs text-on-surface/85 flex items-start gap-2">
+                          <span className="material-symbols-outlined text-primary text-[14px] mt-0.5 shrink-0">arrow_right</span>
+                          <span>{hint}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
             
@@ -761,23 +954,8 @@ export default function CoursePlayer() {
   };
 
   useEffect(() => {
-    if (token && activeTopicId && course) {
-      fetch(`${API_URL}/learning-progress/concept-performance?courseId=${course.course_id}&topicId=${activeTopicId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.concepts) {
-          const perfMap: Record<string, string> = {};
-          data.concepts.forEach((c: any) => {
-            perfMap[c.conceptTag] = c.performance;
-          });
-          setConceptPerformance(perfMap);
-        }
-      })
-      .catch(err => console.error('Failed to fetch concept performance', err));
-    }
-  }, [activeTopicId, course, token]);
+    refreshConceptPerformance();
+  }, [refreshConceptPerformance]);
 
   useEffect(() => {
     if (token) {

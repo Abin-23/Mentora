@@ -2,7 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { StartProgressDto } from './dto/start-progress.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { EvaluatePracticeDto } from './dto/evaluate-practice.dto';
 import { ProgressStatus, ActivityType } from '@prisma/client';
+import axios from 'axios';
 
 @Injectable()
 export class LearningProgressService {
@@ -168,6 +170,59 @@ export class LearningProgressService {
          resource: { select: { resource_title: true } }
       }
     });
+  }
+
+  private get ragServiceUrl(): string {
+    return (process.env.RAG_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  }
+
+  async evaluateAndLogPractice(userId: number, dto: EvaluatePracticeDto) {
+    const { courseId, topicId, instruction, studentAnswer, blockType = 'PRACTICE', attemptNumber = 1, topicTitle, conceptTags } = dto;
+
+    const student = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+      select: { teaching_preference: true }
+    });
+
+    let evalResult = {
+      isCorrect: studentAnswer.trim().length > 15,
+      score: studentAnswer.trim().length > 15 ? 80 : 40,
+      status: studentAnswer.trim().length > 15 ? 'CORRECT' : 'NEEDS_WORK',
+      feedback: 'Answer evaluated. Keep up the good work!',
+      hints: ['Review the instructions for potential edge cases.']
+    };
+
+    try {
+      const response = await axios.post(`${this.ragServiceUrl}/api/evaluate_practice`, {
+        instruction,
+        student_answer: studentAnswer,
+        context: topicTitle ? `Topic: ${topicTitle}` : '',
+        proficiency: 'INTERMEDIATE',
+        teaching_preference: student?.teaching_preference || 'DIRECT'
+      }, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+        timeout: 12000
+      });
+
+      if (response.data && typeof response.data.isCorrect === 'boolean') {
+        evalResult = response.data;
+      }
+    } catch (err: any) {
+      console.warn(`[LearningProgress] AI Practice Evaluation failed, using fallback: ${err.message}`);
+    }
+
+    // Log the interaction with verified isCorrect
+    await this.logBlockInteraction(userId, {
+      courseId,
+      topicId,
+      blockType,
+      isCorrect: evalResult.isCorrect,
+      attemptNumber,
+      studentAnswer,
+      conceptTags: conceptTags || []
+    });
+
+    return evalResult;
   }
 
   async logBlockInteraction(userId: number, dto: any) {

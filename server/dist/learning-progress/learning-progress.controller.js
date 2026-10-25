@@ -19,10 +19,14 @@ const start_progress_dto_1 = require("./dto/start-progress.dto");
 const update_progress_dto_1 = require("./dto/update-progress.dto");
 const passport_1 = require("@nestjs/passport");
 const log_block_interaction_dto_1 = require("./dto/log-block-interaction.dto");
+const evaluate_practice_dto_1 = require("./dto/evaluate-practice.dto");
 let LearningProgressController = class LearningProgressController {
     learningProgressService;
     constructor(learningProgressService) {
         this.learningProgressService = learningProgressService;
+    }
+    evaluatePractice(req, dto) {
+        return this.learningProgressService.evaluateAndLogPractice(req.user.user_id, dto);
     }
     logBlockInteraction(req, dto) {
         return this.learningProgressService.logBlockInteraction(req.user.user_id, dto);
@@ -59,6 +63,14 @@ let LearningProgressController = class LearningProgressController {
     }
 };
 exports.LearningProgressController = LearningProgressController;
+__decorate([
+    (0, common_1.Post)('evaluate-practice'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, evaluate_practice_dto_1.EvaluatePracticeDto]),
+    __metadata("design:returntype", void 0)
+], LearningProgressController.prototype, "evaluatePractice", null);
 __decorate([
     (0, common_1.Post)('block-interaction'),
     __param(0, (0, common_1.Req)()),
