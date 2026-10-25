@@ -255,10 +255,15 @@ export default function Dashboard() {
         </BentoCard>
 
         {/* Certificates Card - Warm White Card */}
-        <BentoCard colSpanClass="md:col-span-4" bgColorClass="bg-white" className="border border-black/5">
+        <BentoCard 
+          colSpanClass="md:col-span-4" 
+          bgColorClass="bg-white" 
+          className="border border-black/5 hover:border-amber-400/50 transition-all cursor-pointer group"
+          onClick={() => navigate('/my-learning?tab=certificates')}
+        >
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined text-amber-700 text-[18px]">workspace_premium</span>
               </div>
               <span className="font-label-mono text-[11px] uppercase tracking-widest text-text-secondary font-bold">Certifications</span>
@@ -279,25 +284,21 @@ export default function Dashboard() {
 
           <div className="mt-auto pt-3 border-t border-black/5 flex items-center justify-between">
             <span className="text-[11px] text-text-secondary truncate max-w-[150px]">
-              {certificates.length > 0 ? certificates[0].course.title : 'Finish all topics'}
+              {certificates.length > 0 ? (
+                certificates.length === 1 ? certificates[0].course.title : `${certificates.length} Certificates Available`
+              ) : 'Finish all topics'}
             </span>
-            {certificates.length > 0 ? (
-              <button 
-                onClick={() => navigate(`/certificate/${certificates[0].credential_id}`)}
-                className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5"
-              >
-                <span>View</span>
-                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-              </button>
-            ) : (
-              <button 
-                onClick={() => navigate('/progress')}
-                className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5"
-              >
-                <span>Eligibility</span>
-                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-              </button>
-            )}
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/my-learning?tab=certificates');
+              }}
+              className="text-xs font-bold text-primary group-hover:underline flex items-center gap-0.5 cursor-pointer"
+            >
+              <span>{certificates.length > 0 ? 'View All' : 'Eligibility'}</span>
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
           </div>
         </BentoCard>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthUser } from '../hooks/useAuthUser';
 import StudentLayout from '../components/layout/StudentLayout';
 
@@ -39,8 +39,25 @@ interface CertificateItem {
 export default function MyLearning() {
   const user = useAuthUser();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
   
-  const [activeTab, setActiveTab] = useState<'courses' | 'certificates'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'certificates'>(
+    tabParam === 'certificates' ? 'certificates' : 'courses'
+  );
+
+  useEffect(() => {
+    if (tabParam === 'certificates') {
+      setActiveTab('certificates');
+    } else if (tabParam === 'courses') {
+      setActiveTab('courses');
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: 'courses' | 'certificates') => {
+    setActiveTab(tab);
+    setSearchParams(tab === 'certificates' ? { tab: 'certificates' } : {});
+  };
   const [enrollments, setEnrollments] = useState<EnrolledCourse[]>([]);
   const [certificates, setCertificates] = useState<CertificateItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +138,7 @@ export default function MyLearning() {
         <div className="flex items-center bg-surface-container-high p-1.5 rounded-2xl border border-outline-variant/30 self-start md:self-auto shrink-0 shadow-sm">
           <button
             type="button"
-            onClick={() => setActiveTab('courses')}
+            onClick={() => handleTabChange('courses')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer ${
               activeTab === 'courses'
                 ? 'bg-white text-primary shadow-sm'
@@ -137,7 +154,7 @@ export default function MyLearning() {
 
           <button
             type="button"
-            onClick={() => setActiveTab('certificates')}
+            onClick={() => handleTabChange('certificates')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer ${
               activeTab === 'certificates'
                 ? 'bg-white text-primary shadow-sm'
