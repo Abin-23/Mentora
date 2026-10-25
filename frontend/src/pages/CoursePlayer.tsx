@@ -454,44 +454,98 @@ export default function CoursePlayer() {
     }
   }, [safeBlockIndex, activeTopicId]);
 
-  const renderBlock = (block: any, index: number) => {
+  const renderBlock = (block: any, index: number, isZen: boolean = isZenMode) => {
+    // Theme-sensitive helpers for Zen Focus Mode
+    const isWarm = isZen && zenTheme === 'warm';
+    const isSlate = isZen && zenTheme === 'slate';
+
+    const getBlockCardClass = (defaultNormalClass: string) => {
+      if (!isZen) return defaultNormalClass;
+      if (isWarm) return 'bg-[#1b1512]/90 border border-amber-900/40 text-amber-50 shadow-2xl backdrop-blur-xl';
+      if (isSlate) return 'bg-slate-900/75 border border-slate-700/60 text-slate-100 shadow-2xl backdrop-blur-xl';
+      return 'bg-white/[0.04] border border-white/10 text-slate-100 shadow-2xl backdrop-blur-xl';
+    };
+
+    const getTitleClass = () => {
+      if (!isZen) return 'text-primary';
+      if (isWarm) return 'text-amber-100';
+      return 'text-white';
+    };
+
+    const getProseClass = () => {
+      if (!isZen) return 'text-on-surface prose-p:leading-relaxed';
+      if (isWarm) {
+        return 'prose-invert text-amber-100/90 prose-headings:text-amber-100 prose-headings:font-bold prose-strong:text-amber-300 prose-code:text-amber-300 prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-ul:text-amber-100/90 prose-li:text-amber-100/90';
+      }
+      return 'prose-invert text-slate-200 prose-headings:text-white prose-headings:font-bold prose-strong:text-accent-neon prose-code:text-accent-neon prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-ul:text-slate-200 prose-li:text-slate-200';
+    };
+
     switch (block.type) {
       case 'CONCEPT':
         return (
-          <div className="group bg-gradient-to-br from-surface-container-low to-surface-container-lowest border border-outline-variant/30 p-8 rounded-3xl mb-8 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-500"></div>
-            <h3 className="font-bold text-xl text-primary mb-5 flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+          <div className={`group p-8 rounded-3xl mb-8 transition-all relative overflow-hidden ${getBlockCardClass('bg-gradient-to-br from-surface-container-low to-surface-container-lowest border border-outline-variant/30 shadow-sm hover:shadow-md')}`}>
+            <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl transition-all duration-500 ${
+              isZen ? (isWarm ? 'bg-amber-600/10' : 'bg-accent-neon/15 group-hover:bg-accent-neon/25') : 'bg-primary/10 group-hover:bg-primary/20'
+            }`}></div>
+            <h3 className={`font-bold text-xl mb-5 flex items-center gap-3 relative z-10 ${getTitleClass()}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm ${
+                isZen ? 'bg-accent-neon/20 text-accent-neon border border-accent-neon/30' : 'bg-primary/10 text-primary'
+              }`}>
                 <span className="material-symbols-outlined">lightbulb</span>
               </div>
               {block.title}
             </h3>
-            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10" />}
-            <div className="prose prose-lg max-w-none text-on-surface prose-p:leading-relaxed relative z-10">
+            {block.visual && block.visual.url && (
+              <LessonVisual visual={block.visual} className="relative z-10 mb-6" isDark={isZen} />
+            )}
+            <div className={`prose prose-lg max-w-none relative z-10 ${getProseClass()}`}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
             </div>
           </div>
         );
       case 'EXAMPLE':
         return (
-          <div className="group bg-surface-container-lowest border border-outline-variant/30 rounded-3xl overflow-hidden mb-8 shadow-sm hover:shadow-md transition-shadow">
-            <div className="bg-gradient-to-r from-surface-container-low to-surface-container-lowest px-6 py-4 border-b border-outline-variant/30 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-sm">code_blocks</span>
+          <div className={`group rounded-3xl overflow-hidden mb-8 transition-all ${getBlockCardClass('bg-surface-container-lowest border border-outline-variant/30 shadow-sm hover:shadow-md')}`}>
+            <div className={`px-6 py-4 flex items-center justify-between ${
+              isZen
+                ? (isWarm ? 'bg-amber-950/20 border-b border-amber-900/40 text-amber-200' : 'bg-white/[0.03] border-b border-white/10 text-slate-200')
+                : 'bg-gradient-to-r from-surface-container-low to-surface-container-lowest border-b border-outline-variant/30 text-text-secondary'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${
+                  isZen ? 'bg-accent-neon/20 text-accent-neon border border-accent-neon/30' : 'bg-primary/10 text-primary'
+                }`}>
+                  <span className="material-symbols-outlined text-sm">code_blocks</span>
+                </div>
+                <h3 className={`font-bold text-sm uppercase tracking-widest transition-colors ${
+                  isZen ? (isWarm ? 'text-amber-100' : 'text-white') : 'text-text-secondary group-hover:text-primary'
+                }`}>
+                  {block.title}
+                </h3>
               </div>
-              <h3 className="font-bold text-sm uppercase tracking-widest text-text-secondary group-hover:text-primary transition-colors">{block.title}</h3>
+              {isZen && (
+                <span className="text-[11px] font-mono uppercase tracking-wider text-accent-neon bg-accent-neon/10 px-2 py-0.5 rounded-full border border-accent-neon/20">
+                  Code Example
+                </span>
+              )}
             </div>
             {block.visual && block.visual.url && (
               <div className="px-6 pt-6 pb-0">
-                <LessonVisual visual={block.visual} />
+                <LessonVisual visual={block.visual} isDark={isZen} />
               </div>
             )}
             <div className="p-6 relative">
-              <div className="absolute top-0 right-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-all duration-500"></div>
-              <div className="bg-surface-container-highest/80 text-on-surface p-5 rounded-2xl font-mono text-sm overflow-x-auto mb-6 border border-outline-variant/30 shadow-inner relative z-10">
+              <div className={`absolute top-0 right-10 w-24 h-24 rounded-full blur-2xl transition-all duration-500 ${
+                isZen ? (isWarm ? 'bg-amber-600/10' : 'bg-accent-neon/10 group-hover:bg-accent-neon/20') : 'bg-primary/5 group-hover:bg-primary/10'
+              }`}></div>
+              <div className={`p-5 rounded-2xl font-mono text-sm overflow-x-auto mb-6 border shadow-inner relative z-10 ${
+                isZen
+                  ? 'bg-black/75 border-white/15 text-emerald-300'
+                  : 'bg-surface-container-highest/80 text-on-surface border-outline-variant/30'
+              }`}>
                 <pre><code>{block.code}</code></pre>
               </div>
-              <div className="prose prose-base text-text-secondary prose-p:leading-relaxed relative z-10">
+              <div className={`prose max-w-none relative z-10 ${getProseClass()}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.explanation}</ReactMarkdown>
               </div>
             </div>
@@ -502,7 +556,7 @@ export default function CoursePlayer() {
         const isCorrect = submittedTryAnswers[index] === block.answer;
         const hasSelection = tryAnswers[index] !== undefined;
         
-          const handleCheckAnswer = () => {
+        const handleCheckAnswer = () => {
           if (!hasSelection || isSubmitted) return;
           const selectedOption = tryAnswers[index];
           const correct = selectedOption === block.answer;
@@ -548,32 +602,69 @@ export default function CoursePlayer() {
         };
 
         return (
-          <div className="group bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] border border-primary/20 p-8 rounded-3xl mb-8 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-primary/15 transition-all duration-700"></div>
-            <h3 className="font-bold text-xl text-primary mb-5 flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+          <div className={`group p-8 rounded-3xl mb-8 relative overflow-hidden transition-all ${getBlockCardClass('bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] border border-primary/20 shadow-sm')}`}>
+            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 transition-all duration-700 ${
+              isZen ? (isWarm ? 'bg-amber-600/10' : 'bg-accent-neon/10 group-hover:bg-accent-neon/20') : 'bg-primary/10 group-hover:bg-primary/15'
+            }`}></div>
+            <h3 className={`font-bold text-xl mb-5 flex items-center gap-3 relative z-10 ${getTitleClass()}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform ${
+                isZen ? 'bg-accent-neon text-black font-extrabold shadow-accent-neon/20' : 'bg-primary text-white'
+              }`}>
                 <span className="material-symbols-outlined">psychology</span>
               </div>
-              {block.title}
+              <span>{block.title}</span>
             </h3>
-            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10" />}
-            <div className="text-lg text-on-surface mb-8 font-medium leading-relaxed relative z-10">{block.question}</div>
+            {block.visual && block.visual.url && (
+              <LessonVisual visual={block.visual} className="relative z-10 mb-6" isDark={isZen} />
+            )}
+            <div className={`text-xl mb-8 leading-relaxed relative z-10 ${
+              isZen ? (isWarm ? 'text-amber-50 font-semibold' : 'text-white font-semibold') : 'text-lg text-on-surface font-medium'
+            }`}>
+              {block.question}
+            </div>
             
             <div className="space-y-4 mb-8 relative z-10">
               {block.options.map((opt: string, oIdx: number) => {
                 const isSelected = tryAnswers[index] === oIdx;
-                let btnClass = "bg-white border-outline-variant/30 text-on-surface hover:bg-surface-container-lowest hover:border-primary/50 shadow-sm";
+                let btnClass = isZen
+                  ? (isWarm
+                      ? 'bg-white/[0.04] border-amber-900/40 text-amber-50 hover:bg-white/[0.08] hover:border-amber-400/50 shadow-sm'
+                      : 'bg-white/[0.05] border-white/15 text-slate-100 hover:bg-white/[0.1] hover:border-accent-neon/50 shadow-sm')
+                  : 'bg-white border-outline-variant/30 text-on-surface hover:bg-surface-container-lowest hover:border-primary/50 shadow-sm';
                 
                 if (isSubmitted) {
                   if (oIdx === block.answer) {
-                    btnClass = "bg-green-50 border-green-500 text-green-900 shadow-sm";
+                    btnClass = isZen
+                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100 shadow-md ring-1 ring-emerald-400/40'
+                      : 'bg-green-50 border-green-500 text-green-900 shadow-sm';
                   } else if (isSelected) {
-                    btnClass = "bg-red-50 border-red-500 text-red-900 shadow-sm";
+                    btnClass = isZen
+                      ? 'bg-rose-500/20 border-rose-400 text-rose-100 shadow-md ring-1 ring-rose-400/40'
+                      : 'bg-red-50 border-red-500 text-red-900 shadow-sm';
                   } else {
-                    btnClass = "bg-white border-outline-variant/10 text-text-secondary opacity-50";
+                    btnClass = isZen
+                      ? 'bg-white/[0.02] border-white/5 text-slate-500 opacity-40'
+                      : 'bg-white border-outline-variant/10 text-text-secondary opacity-50';
                   }
                 } else if (isSelected) {
-                  btnClass = "bg-primary/5 border-primary text-primary shadow-md ring-2 ring-primary/20";
+                  btnClass = isZen
+                    ? 'bg-accent-neon/15 border-accent-neon text-accent-neon shadow-lg ring-2 ring-accent-neon/30'
+                    : 'bg-primary/5 border-primary text-primary shadow-md ring-2 ring-primary/20';
+                }
+
+                // Radio circle styling
+                let radioBorderClass = isZen ? 'border-white/30' : 'border-outline-variant/50';
+                if (isSelected || (isSubmitted && oIdx === block.answer)) {
+                  if (isSubmitted) {
+                    radioBorderClass = oIdx === block.answer ? 'border-emerald-400' : 'border-rose-400';
+                  } else {
+                    radioBorderClass = isZen ? 'border-accent-neon' : 'border-primary';
+                  }
+                }
+
+                let dotClass = isZen ? 'bg-accent-neon' : 'bg-primary';
+                if (isSubmitted) {
+                  dotClass = oIdx === block.answer ? (isZen ? 'bg-emerald-400' : 'bg-green-500') : (isZen ? 'bg-rose-400' : 'bg-red-500');
                 }
 
                 return (
@@ -583,8 +674,10 @@ export default function CoursePlayer() {
                     onClick={() => setTryAnswers(prev => ({...prev, [index]: oIdx}))}
                     className={`w-full text-left p-5 rounded-2xl border-2 transition-all font-medium flex items-center gap-4 ${btnClass}`}
                   >
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected || (isSubmitted && oIdx === block.answer) ? 'border-primary' : 'border-outline-variant/50'}`}>
-                      {(isSelected || (isSubmitted && oIdx === block.answer)) && <div className={`w-3 h-3 rounded-full ${isSubmitted && oIdx === block.answer ? 'bg-green-500' : isSelected && isSubmitted ? 'bg-red-500' : 'bg-primary'}`} />}
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${radioBorderClass}`}>
+                      {(isSelected || (isSubmitted && oIdx === block.answer)) && (
+                        <div className={`w-3 h-3 rounded-full ${dotClass}`} />
+                      )}
                     </div>
                     <span className="leading-relaxed">{opt}</span>
                   </button>
@@ -593,43 +686,67 @@ export default function CoursePlayer() {
             </div>
 
             {!isSubmitted && (
-              <div className="flex justify-end mb-6">
+              <div className="flex justify-end mb-6 relative z-10">
                 <button
                   onClick={handleCheckAnswer}
                   disabled={!hasSelection}
-                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  className={`px-7 py-3 rounded-xl font-bold disabled:opacity-40 transition-all flex items-center gap-2 shadow-md active:scale-95 ${
+                    isZen
+                      ? 'bg-accent-neon text-black font-extrabold hover:bg-accent-neon/90 shadow-accent-neon/20'
+                      : 'px-6 py-2.5 bg-primary text-white hover:bg-primary/90'
+                  }`}
                 >
-                  Check Answer
+                  <span className="material-symbols-outlined text-[18px]">done_all</span>
+                  <span>Check Answer</span>
                 </button>
               </div>
             )}
 
             {isSubmitted && (
-              <div className={`p-5 rounded-xl border animate-fade-in-up ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <div className={`p-6 rounded-2xl border animate-fade-in-up relative z-10 ${
+                isZen
+                  ? (isCorrect
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-100 shadow-xl backdrop-blur-md'
+                      : 'bg-rose-500/15 border-rose-500/40 text-rose-100 shadow-xl backdrop-blur-md')
+                  : (isCorrect ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900')
+              }`}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className={`font-bold flex items-center gap-2 mb-2 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                    <div className={`font-bold flex items-center gap-2 mb-2 text-base ${
+                      isZen
+                        ? (isCorrect ? 'text-emerald-300' : 'text-rose-300')
+                        : (isCorrect ? 'text-green-700' : 'text-red-700')
+                    }`}>
                       <span className="material-symbols-outlined">
                         {isCorrect ? 'check_circle' : 'cancel'}
                       </span>
-                      {isCorrect ? 'Correct!' : 'Incorrect'}
+                      <span>{isCorrect ? 'Correct!' : 'Incorrect'}</span>
                     </div>
-                    <div className="text-sm text-on-surface leading-relaxed">{block.explanation}</div>
+                    <div className={`text-sm leading-relaxed ${
+                      isZen ? 'text-slate-200 font-normal' : 'text-on-surface'
+                    }`}>
+                      {block.explanation}
+                    </div>
                   </div>
                   
                   {!isCorrect && (
                     <button 
                       onClick={handleRetry}
-                      className="shrink-0 px-4 py-2 bg-white border border-outline-variant/30 text-text-secondary hover:bg-surface-container-lowest rounded-lg font-bold text-sm transition-colors"
+                      className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 ${
+                        isZen
+                          ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                          : 'bg-white border border-outline-variant/30 text-text-secondary hover:bg-surface-container-lowest'
+                      }`}
                     >
-                      Retry
+                      <span className="material-symbols-outlined text-[15px]">refresh</span>
+                      <span>Retry</span>
                     </button>
                   )}
                 </div>
               </div>
             )}
             
-            <CoachFeedback message={coachMessages[index]} />
+            <CoachFeedback message={coachMessages[index]} isDark={isZen} />
           </div>
         );
       case 'PRACTICE':
@@ -713,12 +830,16 @@ export default function CoursePlayer() {
         };
 
         return (
-          <div className="group bg-gradient-to-br from-accent-neon/[0.08] to-accent-neon/[0.02] border border-accent-neon/30 p-8 rounded-3xl mb-8 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-accent-neon/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-accent-neon/20 transition-all duration-700"></div>
+          <div className={`group p-8 rounded-3xl mb-8 relative overflow-hidden transition-all ${getBlockCardClass('bg-gradient-to-br from-accent-neon/[0.08] to-accent-neon/[0.02] border border-accent-neon/30 shadow-sm')}`}>
+            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 transition-all duration-700 ${
+              isZen ? (isWarm ? 'bg-amber-600/15' : 'bg-accent-neon/15 group-hover:bg-accent-neon/25') : 'bg-accent-neon/10 group-hover:bg-accent-neon/20'
+            }`}></div>
             
             <div className="flex flex-wrap items-center justify-between gap-4 mb-5 relative z-10">
-              <h3 className="font-bold text-xl text-primary flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent-neon/20 text-accent-neon flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+              <h3 className={`font-bold text-xl flex items-center gap-3 ${getTitleClass()}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${
+                  isZen ? 'bg-accent-neon/20 text-accent-neon border border-accent-neon/30' : 'bg-accent-neon/20 text-accent-neon'
+                }`}>
                   <span className="material-symbols-outlined">{block.type === 'CHALLENGE' ? 'emoji_events' : 'fitness_center'}</span>
                 </div>
                 <span>{block.title}</span>
@@ -727,10 +848,10 @@ export default function CoursePlayer() {
               {isPracSubmitted && evaluation && (
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm ${
                   evaluation.status === 'CORRECT'
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                    ? (isZen ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300')
                     : evaluation.status === 'PARTIALLY_CORRECT'
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300'
-                    : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                    ? (isZen ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300')
+                    : (isZen ? 'bg-rose-500/20 border-rose-400 text-rose-300' : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300')
                 }`}>
                   <span className="material-symbols-outlined text-[15px]">
                     {evaluation.status === 'CORRECT' ? 'verified' : evaluation.status === 'PARTIALLY_CORRECT' ? 'published_with_changes' : 'help'}
@@ -742,26 +863,38 @@ export default function CoursePlayer() {
               )}
             </div>
 
-            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10 mb-6" />}
+            {block.visual && block.visual.url && (
+              <LessonVisual visual={block.visual} className="relative z-10 mb-6" isDark={isZen} />
+            )}
             
-            <div className="prose prose-lg text-on-surface prose-p:leading-relaxed mb-6 relative z-10">
+            <div className={`prose prose-lg mb-6 relative z-10 max-w-none ${getProseClass()}`}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.instruction}</ReactMarkdown>
             </div>
             
             <div className="relative mb-6 z-10">
-              <div className="flex items-center justify-between text-xs font-semibold text-text-secondary mb-2 px-1">
+              <div className={`flex items-center justify-between text-xs font-semibold mb-2 px-1 ${
+                isZen ? (isWarm ? 'text-amber-200/80' : 'text-slate-300') : 'text-text-secondary'
+              }`}>
                 <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-primary">code</span>
+                  <span className={`material-symbols-outlined text-[15px] ${isZen ? 'text-accent-neon' : 'text-primary'}`}>code</span>
                   Your {block.type === 'CHALLENGE' ? 'Challenge Solution' : 'Practice Code / Answer'}
                 </span>
                 {practiceAttemptCounts[index] ? (
-                  <span className="opacity-75">Attempt #{practiceAttemptCounts[index]}</span>
+                  <span className={isZen ? 'text-slate-400' : 'opacity-75'}>Attempt #{practiceAttemptCounts[index]}</span>
                 ) : null}
               </div>
 
-              <div className="bg-white dark:bg-surface-container-lowest rounded-2xl border-2 border-outline-variant/30 overflow-hidden focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all shadow-inner">
+              <div className={`rounded-2xl border-2 overflow-hidden transition-all shadow-inner ${
+                isZen
+                  ? 'bg-black/60 border-white/20 focus-within:border-accent-neon focus-within:ring-4 focus-within:ring-accent-neon/20'
+                  : 'bg-white border-outline-variant/30 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10'
+              }`}>
                 <textarea 
-                  className="w-full h-44 p-4 bg-transparent outline-none resize-none text-on-surface font-mono text-sm placeholder:text-text-secondary/50 placeholder:font-sans disabled:opacity-85"
+                  className={`w-full h-44 p-4 bg-transparent outline-none resize-none font-mono text-sm disabled:opacity-85 ${
+                    isZen
+                      ? 'text-slate-100 placeholder:text-slate-500 placeholder:font-sans'
+                      : 'text-on-surface placeholder:text-text-secondary/50 placeholder:font-sans'
+                  }`}
                   placeholder={`Type your ${block.type === 'CHALLENGE' ? 'solution' : 'code or answer'} here...`}
                   value={currentAnswer}
                   onChange={(e) => setPracticeAnswers(prev => ({...prev, [index]: e.target.value}))}
@@ -776,7 +909,11 @@ export default function CoursePlayer() {
                 <button
                   onClick={handlePracticeSubmit}
                   disabled={!currentAnswer.trim() || isEvaluating}
-                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-md hover:shadow-primary/20 active:scale-[0.99]"
+                  className={`px-7 py-3 rounded-xl font-bold disabled:opacity-40 transition-all flex items-center gap-2 shadow-md active:scale-95 ${
+                    isZen
+                      ? 'bg-accent-neon text-black font-extrabold hover:bg-accent-neon/90 shadow-accent-neon/20'
+                      : 'px-6 py-2.5 bg-primary text-white hover:bg-primary/90 hover:shadow-primary/20'
+                  }`}
                 >
                   {isEvaluating ? (
                     <>
@@ -795,24 +932,34 @@ export default function CoursePlayer() {
             
             {isPracSubmitted && (
               <div className={`p-6 rounded-2xl border transition-all animate-fade-in-up relative z-10 mb-2 ${
-                evaluation?.status === 'CORRECT'
-                  ? 'bg-emerald-500/[0.06] border-emerald-500/30'
-                  : evaluation?.status === 'PARTIALLY_CORRECT'
-                  ? 'bg-amber-500/[0.06] border-amber-500/30'
-                  : evaluation?.status === 'NEEDS_WORK'
-                  ? 'bg-rose-500/[0.06] border-rose-500/30'
-                  : 'bg-surface-container-highest border-outline-variant/50'
+                isZen
+                  ? (evaluation?.status === 'CORRECT'
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-100 shadow-xl backdrop-blur-md'
+                      : evaluation?.status === 'PARTIALLY_CORRECT'
+                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-100 shadow-xl backdrop-blur-md'
+                      : evaluation?.status === 'NEEDS_WORK'
+                      ? 'bg-rose-500/15 border-rose-500/40 text-rose-100 shadow-xl backdrop-blur-md'
+                      : 'bg-white/10 border-white/20 text-slate-100 shadow-xl')
+                  : (evaluation?.status === 'CORRECT'
+                      ? 'bg-emerald-500/[0.06] border-emerald-500/30'
+                      : evaluation?.status === 'PARTIALLY_CORRECT'
+                      ? 'bg-amber-500/[0.06] border-amber-500/30'
+                      : evaluation?.status === 'NEEDS_WORK'
+                      ? 'bg-rose-500/[0.06] border-rose-500/30'
+                      : 'bg-surface-container-highest border-outline-variant/50')
               }`}>
-                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-outline-variant/20 mb-4">
+                <div className={`flex flex-wrap items-center justify-between gap-4 pb-4 border-b mb-4 ${
+                  isZen ? 'border-white/10' : 'border-outline-variant/20'
+                }`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${
                       evaluation?.status === 'CORRECT'
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-emerald-500/20 text-emerald-400'
                         : evaluation?.status === 'PARTIALLY_CORRECT'
-                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        ? 'bg-amber-500/20 text-amber-400'
                         : evaluation?.status === 'NEEDS_WORK'
-                        ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
-                        : 'bg-primary/10 text-primary'
+                        ? 'bg-rose-500/20 text-rose-400'
+                        : (isZen ? 'bg-accent-neon/20 text-accent-neon' : 'bg-primary/10 text-primary')
                     }`}>
                       <span className="material-symbols-outlined">
                         {evaluation?.status === 'CORRECT' 
@@ -825,7 +972,9 @@ export default function CoursePlayer() {
                       </span>
                     </div>
                     <div>
-                      <div className="font-bold text-base text-on-surface flex items-center gap-2">
+                      <div className={`font-bold text-base flex items-center gap-2 ${
+                        isZen ? 'text-white' : 'text-on-surface'
+                      }`}>
                         {evaluation?.status === 'CORRECT' 
                           ? 'Mastered / Correct Solution!' 
                           : evaluation?.status === 'PARTIALLY_CORRECT' 
@@ -834,7 +983,9 @@ export default function CoursePlayer() {
                           ? 'Needs Refinement'
                           : 'Submission Recorded!'}
                       </div>
-                      <div className="text-xs text-text-secondary font-medium">
+                      <div className={`text-xs font-medium ${
+                        isZen ? 'text-slate-400' : 'text-text-secondary'
+                      }`}>
                         {evaluation 
                           ? `Graded in real-time by Mentora AI • Attempt #${practiceAttemptCounts[index] || 1}` 
                           : 'Saved to your learning journey'}
@@ -846,10 +997,10 @@ export default function CoursePlayer() {
                     {evaluation?.score !== undefined && (
                       <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
                         evaluation.score >= 75
-                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
                           : evaluation.score >= 45
-                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300'
-                          : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                          : 'bg-rose-500/15 border-rose-500/30 text-rose-300'
                       }`}>
                         <span className="material-symbols-outlined text-[14px]">scoreboard</span>
                         <span>Score: {evaluation.score}/100</span>
@@ -858,7 +1009,11 @@ export default function CoursePlayer() {
 
                     <button 
                       onClick={handlePracticeRetry}
-                      className="px-3.5 py-1.5 bg-white dark:bg-surface-container-highest border border-outline-variant/30 text-on-surface hover:bg-surface-container-lowest rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-sm ${
+                        isZen
+                          ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                          : 'bg-white border border-outline-variant/30 text-on-surface hover:bg-surface-container-lowest'
+                      }`}
                     >
                       <span className="material-symbols-outlined text-[15px]">edit</span>
                       <span>Revise Answer</span>
@@ -867,7 +1022,9 @@ export default function CoursePlayer() {
                 </div>
 
                 {/* AI Tutor Feedback formatted in Markdown */}
-                <div className="prose prose-sm max-w-none text-on-surface/90 leading-relaxed mb-3">
+                <div className={`prose prose-sm max-w-none leading-relaxed mb-3 ${
+                  isZen ? 'prose-invert text-slate-200 prose-strong:text-accent-neon' : 'text-on-surface/90'
+                }`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {evaluation?.feedback || 'Great job completing this practice! Your answer has been saved to your learning journey.'}
                   </ReactMarkdown>
@@ -875,15 +1032,23 @@ export default function CoursePlayer() {
 
                 {/* Targeted Actionable Hints */}
                 {evaluation?.hints && evaluation.hints.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-outline-variant/20">
-                    <div className="font-bold text-xs uppercase tracking-wider text-text-secondary mb-2 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-amber-500 text-[16px]">lightbulb</span>
+                  <div className={`mt-4 pt-3 border-t ${
+                    isZen ? 'border-white/10' : 'border-outline-variant/20'
+                  }`}>
+                    <div className={`font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
+                      isZen ? 'text-slate-300' : 'text-text-secondary'
+                    }`}>
+                      <span className="material-symbols-outlined text-amber-400 text-[16px]">lightbulb</span>
                       <span>Tutor Insights & Suggestions</span>
                     </div>
                     <ul className="space-y-1.5">
                       {evaluation.hints.map((hint: string, hIdx: number) => (
-                        <li key={hIdx} className="text-xs text-on-surface/85 flex items-start gap-2">
-                          <span className="material-symbols-outlined text-primary text-[14px] mt-0.5 shrink-0">arrow_right</span>
+                        <li key={hIdx} className={`text-xs flex items-start gap-2 ${
+                          isZen ? 'text-slate-200' : 'text-on-surface/85'
+                        }`}>
+                          <span className={`material-symbols-outlined text-[14px] mt-0.5 shrink-0 ${
+                            isZen ? 'text-accent-neon' : 'text-primary'
+                          }`}>arrow_right</span>
                           <span>{hint}</span>
                         </li>
                       ))}
@@ -893,27 +1058,45 @@ export default function CoursePlayer() {
               </div>
             )}
             
-            <CoachFeedback message={coachMessages[index]} />
+            <CoachFeedback message={coachMessages[index]} isDark={isZen} />
           </div>
         );
       case 'RECAP':
         return (
-          <div className="group bg-gradient-to-br from-surface-container-highest to-surface-container-low border border-outline-variant/50 p-8 rounded-3xl mb-8 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-500"></div>
-            <h3 className="font-bold text-xl text-primary mb-6 flex items-center gap-3 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-surface-container-highest border border-outline-variant/50 flex items-center justify-center text-primary shadow-sm group-hover:scale-110 transition-transform">
+          <div className={`group p-8 rounded-3xl mb-8 shadow-sm transition-all relative overflow-hidden ${getBlockCardClass('bg-gradient-to-br from-surface-container-highest to-surface-container-low border border-outline-variant/50 hover:shadow-md')}`}>
+            <div className={`absolute -bottom-10 -right-10 w-40 h-40 rounded-full blur-3xl transition-all duration-500 ${
+              isZen ? (isWarm ? 'bg-amber-600/10' : 'bg-primary/30 group-hover:bg-primary/50') : 'bg-primary/10 group-hover:bg-primary/20'
+            }`}></div>
+            <h3 className={`font-bold text-xl mb-6 flex items-center gap-3 relative z-10 ${getTitleClass()}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 ${
+                isZen
+                  ? 'bg-accent-neon/20 border border-accent-neon/30 text-accent-neon'
+                  : 'bg-surface-container-highest border border-outline-variant/50 text-primary'
+              }`}>
                 <span className="material-symbols-outlined">summarize</span>
               </div>
-              {block.title}
+              <span>{block.title}</span>
             </h3>
-            {block.visual && block.visual.url && <LessonVisual visual={block.visual} className="relative z-10" />}
+            {block.visual && block.visual.url && (
+              <LessonVisual visual={block.visual} className="relative z-10 mb-6" isDark={isZen} />
+            )}
             <ul className="space-y-4 relative z-10">
               {block.points.map((pt: string, pIdx: number) => (
-                <li key={pIdx} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/50 transition-colors border border-transparent hover:border-outline-variant/30">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-primary text-[14px]">check</span>
+                <li key={pIdx} className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${
+                  isZen
+                    ? (isWarm
+                        ? 'bg-white/[0.04] border-amber-900/30 hover:bg-white/[0.08] text-amber-50'
+                        : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06] text-slate-100')
+                    : 'hover:bg-white/50 border-transparent hover:border-outline-variant/30 text-on-surface'
+                }`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    isZen ? 'bg-accent-neon/20 text-accent-neon border border-accent-neon/30' : 'bg-primary/10 text-primary'
+                  }`}>
+                    <span className="material-symbols-outlined text-[14px]">check</span>
                   </div>
-                  <span className="text-on-surface leading-relaxed text-lg">{pt}</span>
+                  <span className={`leading-relaxed text-lg ${
+                    isZen ? (isWarm ? 'text-amber-50 font-medium' : 'text-slate-100 font-medium') : 'text-on-surface'
+                  }`}>{pt}</span>
                 </li>
               ))}
             </ul>
@@ -2367,16 +2550,16 @@ export default function CoursePlayer() {
           {/* Floating Minimal Header Bar */}
           <header className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0 backdrop-blur-md bg-black/30 z-40">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold">
+              <div className="w-9 h-9 rounded-xl bg-accent-neon/20 text-accent-neon border border-accent-neon/30 flex items-center justify-center font-bold shadow-sm">
                 <span className="material-symbols-outlined text-[20px]">self_improvement</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm tracking-tight">{course?.title}</span>
+                  <span className="font-bold text-sm tracking-tight text-white">{course?.title}</span>
                   <span className="text-white/40">•</span>
-                  <span className="text-xs text-text-secondary">{activeTopicObj?.topic_title || activeTopicObj?.title}</span>
+                  <span className="text-xs text-slate-300">{activeTopicObj?.topic_title || activeTopicObj?.title}</span>
                 </div>
-                <div className="text-[11px] text-text-secondary flex items-center gap-2 mt-0.5">
+                <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                   <span>Block {safeBlockIndex + 1} of {parsedAiLesson.blocks.length}</span>
                   <span>•</span>
                   <span className="uppercase tracking-wider font-bold text-accent-neon">{parsedAiLesson.blocks[safeBlockIndex]?.type || 'LESSON'}</span>
@@ -2390,19 +2573,19 @@ export default function CoursePlayer() {
               <div className="hidden sm:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10 text-xs">
                 <button
                   onClick={() => setZenTheme('midnight')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'midnight' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'midnight' ? 'bg-white/20 text-white font-bold' : 'text-white/60 hover:text-white'}`}
                 >
                   Midnight
                 </button>
                 <button
                   onClick={() => setZenTheme('slate')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'slate' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'slate' ? 'bg-white/20 text-white font-bold' : 'text-white/60 hover:text-white'}`}
                 >
                   Slate
                 </button>
                 <button
                   onClick={() => setZenTheme('warm')}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'warm' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'warm' ? 'bg-white/20 text-white font-bold' : 'text-white/60 hover:text-white'}`}
                 >
                   Warm
                 </button>
@@ -2444,7 +2627,7 @@ export default function CoursePlayer() {
 
               {/* The rendered lesson block */}
               <div className="zen-content-wrapper">
-                {renderBlock(parsedAiLesson.blocks[safeBlockIndex], safeBlockIndex)}
+                {renderBlock(parsedAiLesson.blocks[safeBlockIndex], safeBlockIndex, true)}
               </div>
             </div>
           </div>
@@ -2490,7 +2673,7 @@ export default function CoursePlayer() {
                 zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               disabled={safeBlockIndex === parsedAiLesson.blocks.length - 1}
-              className="px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md shadow-primary/20"
+              className="px-4 py-1.5 rounded-xl bg-accent-neon hover:bg-accent-neon/90 disabled:opacity-30 disabled:pointer-events-none text-black text-xs font-extrabold flex items-center gap-1 transition-all shadow-md shadow-accent-neon/20 active:scale-95"
             >
               <span>Next</span>
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
