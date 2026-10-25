@@ -44,6 +44,20 @@ interface CoursePlayerContent {
 
 const LEARNING_STAGES = ['Learn', 'Understand', 'Try', 'Practice', 'Check', 'Master'];
 
+interface TutorSessionMessage {
+  id: string;
+  query: string;
+  response?: {
+    answer: string;
+    keyPoints?: string[];
+    example?: string;
+    practicePrompt?: string;
+    sources?: Array<{ resourceName: string; pageNumber: number }>;
+  };
+  error?: string;
+  loading?: boolean;
+}
+
 export default function CoursePlayer() {
   const user = useAuthUser();
   const { courseSlug } = useParams();
@@ -107,15 +121,25 @@ export default function CoursePlayer() {
   const [certificateData, setCertificateData] = useState<any>(null);
   const [claimingCert, setClaimingCert] = useState(false);
 
-  // AI Tutor State
+  // AI Tutor State (in-memory session chat thread)
   const [tutorOpen, setTutorOpen] = useState(false);
   const [tutorQuery, setTutorQuery] = useState('');
-  const [tutorResponse, setTutorResponse] = useState<any>(null);
+  const [tutorMessages, setTutorMessages] = useState<TutorSessionMessage[]>([]);
   const [tutorLoading, setTutorLoading] = useState(false);
-  const [tutorError, setTutorError] = useState('');
+  const tutorScrollRef = useRef<HTMLDivElement>(null);
   const lessonScrollRef = useRef<HTMLDivElement>(null);
   const mainViewerRef = useRef<HTMLDivElement>(null);
   const zenScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll tutor chat to bottom when new messages arrive
+  useEffect(() => {
+    if (tutorScrollRef.current) {
+      tutorScrollRef.current.scrollTo({
+        top: tutorScrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [tutorMessages, tutorLoading, tutorOpen]);
 
   // Neo4j Knowledge Graph & Zen Focus Mode State
   const [showGraphModal, setShowGraphModal] = useState<boolean>(false);
@@ -134,11 +158,19 @@ export default function CoursePlayer() {
 
   const askTutor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tutorQuery.trim() || !course) return;
-    
+    const queryText = tutorQuery.trim();
+    if (!queryText || !course || tutorLoading) return;
+
+    const messageId = `msg-${Date.now()}`;
+    const newMsg: TutorSessionMessage = {
+      id: messageId,
+      query: queryText,
+      loading: true,
+    };
+
+    setTutorMessages((prev) => [...prev, newMsg]);
+    setTutorQuery('');
     setTutorLoading(true);
-    setTutorError('');
-    setTutorResponse(null);
 
     try {
       const res = await fetch(`${API_URL}/adaptive-learning/students/${user.user_id}/courses/${course.course_id}/tutor`, {
@@ -146,7 +178,7 @@ export default function CoursePlayer() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           topic_id: activeTopicId,
-          query: tutorQuery
+          query: queryText
         })
       });
 
@@ -155,11 +187,35 @@ export default function CoursePlayer() {
       }
 
       const data = await res.json();
-      data.query = tutorQuery;
-      setTutorResponse(data);
-      setTutorQuery('');
-    } catch(err: any) {
-      setTutorError(err.message);
+      setTutorMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                loading: false,
+                response: {
+                  answer: data.answer,
+                  keyPoints: data.keyPoints,
+                  example: data.example,
+                  practicePrompt: data.practicePrompt,
+                  sources: data.sources,
+                },
+              }
+            : msg
+        )
+      );
+    } catch (err: any) {
+      setTutorMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                loading: false,
+                error: err.message || 'Failed to get an answer.',
+              }
+            : msg
+        )
+      );
     } finally {
       setTutorLoading(false);
     }
@@ -2384,115 +2440,159 @@ export default function CoursePlayer() {
 
       {/* AI Tutor Panel */}
       {tutorOpen && (
-        <div className="fixed inset-y-0 right-0 w-full md:w-[400px] bg-surface shadow-2xl shadow-black/10 z-50 flex flex-col border-l border-outline-variant/30 animate-in slide-in-from-right duration-300">
+        <div className="fixed inset-y-0 right-0 w-full md:w-[420px] bg-surface shadow-2xl shadow-black/15 z-50 flex flex-col border-l border-outline-variant/30 animate-in slide-in-from-right duration-300">
           {/* Header */}
-          <div className="h-16 flex items-center justify-between px-4 bg-surface border-b border-outline-variant/30 text-text">
-            <div className="flex items-center gap-2 text-primary">
-              <span className="material-symbols-outlined text-2xl">support_agent</span>
-              <h2 className="font-black tracking-wide text-lg text-text">MENTORA TUTOR</h2>
+          <div className="h-16 flex items-center justify-between px-4 bg-surface border-b border-outline-variant/30 text-text shrink-0">
+            <div className="flex items-center gap-2.5 text-primary">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-2xl">support_agent</span>
+              </div>
+              <div>
+                <h2 className="font-black tracking-wide text-base text-text leading-tight">MENTORA TUTOR</h2>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Session Chat • {tutorMessages.length} {tutorMessages.length === 1 ? 'question' : 'questions'}</span>
+                </div>
+              </div>
             </div>
-            <button onClick={() => setTutorOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-text-secondary">
-              <span className="material-symbols-outlined text-xl">close</span>
-            </button>
+            <div className="flex items-center gap-1">
+              {tutorMessages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTutorMessages([])}
+                  className="px-2.5 py-1 text-xs text-text-secondary hover:text-red-500 rounded-lg hover:bg-surface-container-highest transition-colors font-semibold flex items-center gap-1"
+                  title="Clear questions from this session"
+                >
+                  <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
+              <button 
+                type="button"
+                onClick={() => setTutorOpen(false)} 
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest transition-colors text-text-secondary"
+                title="Close Tutor"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
           </div>
           
           {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-surface-container-lowest">
-            <div className="bg-surface-container-highest/20 rounded-xl p-3 border border-outline-variant/20">
-              <p className="text-xs text-text-secondary font-bold uppercase tracking-wider mb-1">Current Context</p>
-              <p className="text-sm font-medium line-clamp-1">{activeTopicId ? course?.topics.find((t: any) => (t.topic_id || t.topicId) === activeTopicId)?.topic_title : course?.title}</p>
+          <div ref={tutorScrollRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-surface-container-lowest">
+            {/* Context Badge */}
+            <div className="bg-surface-container-highest/20 rounded-xl p-3 border border-outline-variant/20 shrink-0">
+              <p className="text-[11px] text-text-secondary font-bold uppercase tracking-wider mb-0.5">Current Context</p>
+              <p className="text-sm font-semibold text-primary line-clamp-1">
+                {activeTopicId ? course?.topics.find((t: any) => (t.topic_id || t.topicId) === activeTopicId)?.topic_title : course?.title}
+              </p>
             </div>
 
-            {tutorResponse && (
-              <div className="flex flex-col gap-2 mb-4">
-                <div className="bg-primary text-white p-3 rounded-2xl rounded-tr-sm self-end max-w-[85%] shadow-sm">
-                  <p className="text-sm">{tutorResponse.query || tutorQuery}</p>
+            {/* Empty State */}
+            {tutorMessages.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto opacity-75">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                  <span className="material-symbols-outlined text-3xl">chat_bubble</span>
                 </div>
-                
-                <div className="bg-white border border-outline-variant/30 p-4 rounded-2xl rounded-tl-sm self-start w-full shadow-sm">
-                  <div className="prose prose-sm prose-primary max-w-none prose-p:leading-relaxed prose-p:mb-2 prose-strong:text-primary">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{tutorResponse.answer}</ReactMarkdown>
+                <h4 className="font-bold text-base text-primary mb-1">Ask Any Question</h4>
+                <p className="text-xs text-text-secondary max-w-[260px] leading-relaxed">
+                  Ask Mentora Tutor anything about this topic. All questions and answers will remain visible throughout this session.
+                </p>
+              </div>
+            )}
+
+            {/* Session Messages Thread */}
+            {tutorMessages.map((msg, idx) => (
+              <div key={msg.id || idx} className="flex flex-col gap-2 mb-2 animate-fade-in-up">
+                {/* Student Query Bubble */}
+                <div className="bg-primary text-white p-3.5 rounded-2xl rounded-tr-xs self-end max-w-[85%] shadow-sm">
+                  <p className="text-sm font-medium leading-relaxed">{msg.query}</p>
+                </div>
+
+                {/* Loading state for this specific question */}
+                {msg.loading && (
+                  <div className="bg-white border border-outline-variant/30 p-4 rounded-2xl rounded-tl-xs self-start shadow-sm flex items-center gap-3">
+                    <span className="material-symbols-outlined animate-spin text-primary text-lg">progress_activity</span>
+                    <span className="text-sm text-text-secondary font-medium animate-pulse">Analyzing course material...</span>
                   </div>
-                  
-                  {tutorResponse.keyPoints && tutorResponse.keyPoints.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-outline-variant/30">
-                      <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Key Points</p>
-                      <ul className="list-disc pl-4 text-sm text-text-secondary space-y-1">
-                        {tutorResponse.keyPoints.map((kp: string, i: number) => <li key={i}>{kp}</li>)}
-                      </ul>
-                    </div>
-                  )}
+                )}
 
-                  {tutorResponse.example && (
-                    <div className="mt-4 p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/20">
-                      <p className="text-xs font-bold uppercase tracking-wider text-secondary mb-2 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">lightbulb</span> Example
-                      </p>
-                      <p className="text-sm italic">{tutorResponse.example}</p>
+                {/* Error state */}
+                {msg.error && (
+                  <div className="bg-red-50 text-red-600 p-3.5 rounded-2xl rounded-tl-xs self-start text-sm border border-red-200 shadow-sm max-w-[90%]">
+                    <div className="font-bold flex items-center gap-1.5 mb-1 text-xs">
+                      <span className="material-symbols-outlined text-[16px]">error</span>
+                      <span>Tutor Error</span>
                     </div>
-                  )}
+                    <p className="text-xs leading-relaxed">{msg.error}</p>
+                  </div>
+                )}
 
-                  {tutorResponse.practicePrompt && (
-                    <div className="mt-4 p-3 bg-primary/5 rounded-xl border border-primary/20">
-                      <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">psychology</span> Practice Prompt
-                      </p>
-                      <p className="text-sm">{tutorResponse.practicePrompt}</p>
+                {/* Tutor Answer Card */}
+                {msg.response && (
+                  <div className="bg-white border border-outline-variant/30 p-4 rounded-2xl rounded-tl-xs self-start w-full shadow-sm flex flex-col gap-3">
+                    <div className="prose prose-sm prose-primary max-w-none prose-p:leading-relaxed prose-p:mb-2 prose-strong:text-primary">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.response.answer}</ReactMarkdown>
                     </div>
-                  )}
 
-                  {tutorResponse.sources && tutorResponse.sources.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-outline-variant/30">
-                      <p className="text-xs font-bold text-text-secondary mb-2 flex items-center gap-1">
-                         <span className="material-symbols-outlined text-[14px]">menu_book</span> Sources
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {tutorResponse.sources.map((s: any, i: number) => (
-                           <span key={i} className="text-[10px] bg-surface-container-highest px-2 py-1 rounded-md text-text-secondary truncate max-w-full">
-                             {s.resourceName} (p. {s.pageNumber})
-                           </span>
-                        ))}
+                    {msg.response.keyPoints && msg.response.keyPoints.length > 0 && (
+                      <div className="pt-3 border-t border-outline-variant/20">
+                        <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">checklist</span> Key Points
+                        </p>
+                        <ul className="list-disc pl-4 text-xs text-text-secondary space-y-1">
+                          {msg.response.keyPoints.map((kp: string, i: number) => (
+                            <li key={i}>{kp}</li>
+                          ))}
+                        </ul>
                       </div>
+                    )}
+
+                    {msg.response.example && (
+                      <div className="p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/20">
+                        <p className="text-xs font-bold uppercase tracking-wider text-secondary mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">lightbulb</span> Example
+                        </p>
+                        <p className="text-xs italic text-on-surface/90">{msg.response.example}</p>
+                      </div>
+                    )}
+
+                    {msg.response.practicePrompt && (
+                      <div className="p-3 bg-primary/5 rounded-xl border border-primary/20">
+                        <p className="text-xs font-bold uppercase tracking-wider text-primary mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">psychology</span> Practice Prompt
+                        </p>
+                        <p className="text-xs text-on-surface">{msg.response.practicePrompt}</p>
+                      </div>
+                    )}
+
+                    {msg.response.sources && msg.response.sources.length > 0 && (
+                      <div className="pt-3 border-t border-outline-variant/20">
+                        <p className="text-xs font-bold text-text-secondary mb-1.5 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">menu_book</span> Sources
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {msg.response.sources.map((s: any, i: number) => (
+                            <span key={i} className="text-[10px] bg-surface-container-highest px-2 py-1 rounded-md text-text-secondary truncate max-w-full">
+                              {s.resourceName} (p. {s.pageNumber})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1 pt-1 text-[10px] text-text-secondary/60">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      <span>Adapted to your proficiency and teaching preference</span>
                     </div>
-                  )}
-
-                  <div className="mt-4 flex items-center gap-1 text-[10px] text-text-secondary/60">
-                    <span className="material-symbols-outlined text-[12px]">info</span>
-                    Adapted to your proficiency and teaching preference
                   </div>
-                </div>
+                )}
               </div>
-            )}
-
-            {tutorLoading && (
-              <div className="flex flex-col gap-2 mb-4">
-                <div className="bg-primary text-white p-3 rounded-2xl rounded-tr-sm self-end max-w-[85%] shadow-sm">
-                  <p className="text-sm">{tutorQuery}</p>
-                </div>
-                <div className="bg-white border border-outline-variant/30 p-4 rounded-2xl rounded-tl-sm self-start shadow-sm flex items-center gap-3">
-                  <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
-                  <span className="text-sm text-text-secondary animate-pulse">Analyzing course material...</span>
-                </div>
-              </div>
-            )}
-
-            {tutorError && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm border border-red-200">
-                <span className="font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">error</span> Error</span>
-                <p>{tutorError}</p>
-              </div>
-            )}
-            
-            {!tutorResponse && !tutorLoading && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 opacity-60">
-                <span className="material-symbols-outlined text-5xl mb-3 text-text-secondary">chat_bubble</span>
-                <p className="font-medium text-text-secondary">Ask Mentora Tutor a question based on your current course topic.</p>
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Input Area */}
-          <form onSubmit={askTutor} className="p-4 bg-white border-t border-outline-variant/30">
+          <form onSubmit={askTutor} className="p-4 bg-white border-t border-outline-variant/30 shrink-0">
             <div className="relative flex items-center">
               <input
                 type="text"
@@ -2500,12 +2600,12 @@ export default function CoursePlayer() {
                 value={tutorQuery}
                 onChange={(e) => setTutorQuery(e.target.value)}
                 disabled={tutorLoading}
-                className="w-full pl-4 pr-12 py-3 bg-surface-container-lowest border border-outline-variant/50 rounded-full text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                className="w-full pl-4 pr-12 py-3 bg-surface-container-lowest border border-outline-variant/50 rounded-full text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-text-secondary/60"
               />
               <button 
                 type="submit" 
                 disabled={!tutorQuery.trim() || tutorLoading}
-                className="absolute right-2 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary"
+                className="absolute right-2 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 disabled:opacity-40 disabled:hover:bg-primary transition-all shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm">send</span>
               </button>
