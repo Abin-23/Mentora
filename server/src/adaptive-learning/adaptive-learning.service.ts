@@ -872,4 +872,144 @@ Recommended Topics Count: ${recommendedTopics.length}`);
 
     return tutorResult;
   }
+
+  async getPrerequisitesGraph(studentId: number, courseId: number) {
+    let topics: Array<{ topicId: number; title: string; sequenceNumber: number; difficulty: string }> = [];
+    let links: Array<{ source: number; target: number; type: string }> = [];
+    const knowledgeStates = new Map<number, { score: number | null; proficiency: string }>();
+
+    try {
+      // 1. Fetch topics from Neo4j
+      const topicsResult = await this.neo4jService.read(
+        `
+        MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t:Topic)
+        RETURN t.topicId AS topicId, t.title AS title, t.sequenceNumber AS sequenceNumber, t.difficulty AS difficulty
+        ORDER BY t.sequenceNumber
+        `,
+        { courseId: neo4j.int(courseId) }
+      );
+
+      topics = topicsResult.records.map((rec) => ({
+        topicId: toNumberSafe(rec.get('topicId')),
+        title: rec.get('title'),
+        sequenceNumber: toNumberSafe(rec.get('sequenceNumber')),
+        difficulty: rec.get('difficulty') || 'BEGINNER',
+      }));
+
+      // 2. Fetch prerequisite links from Neo4j
+      const prereqResult = await this.neo4jService.read(
+        `
+        MATCH (c:Course {courseId: toInteger($courseId)})-[:HAS_TOPIC]->(t1:Topic)
+        MATCH (t1)-[:PREREQUISITE_FOR]->(t2:Topic)<-[:HAS_TOPIC]-(c)
+        RETURN t1.topicId AS source, t2.topicId AS target
+        `,
+        { courseId: neo4j.int(courseId) }
+      );
+
+      links = prereqResult.records.map((rec) => ({
+        source: toNumberSafe(rec.get('source')),
+        target: toNumberSafe(rec.get('target')),
+        type: 'PREREQUISITE_FOR',
+      }));
+
+      // 3. Fetch Student Knowledge States from Neo4j
+      const stateResult = await this.neo4jService.read(
+        `
+        MATCH (s:Student {studentId: toInteger($studentId)})-[k:KNOWLEDGE_STATE]->(t:Topic)<-[:HAS_TOPIC]-(c:Course {courseId: toInteger($courseId)})
+        RETURN t.topicId AS topicId, k.score AS score, k.proficiency AS proficiency
+        `,
+        { studentId: neo4j.int(studentId), courseId: neo4j.int(courseId) }
+      );
+
+      stateResult.records.forEach((rec) => {
+        knowledgeStates.set(toNumberSafe(rec.get('topicId')), {
+          score: rec.get('score') != null ? Math.round(Number(rec.get('score')) * 100) : null,
+          proficiency: rec.get('proficiency') || 'UNASSESSED',
+        });
+      });
+    } catch (err) {
+      console.warn('[PrerequisiteGraph] Neo4j read failed or offline, falling back to PostgreSQL:', err);
+    }
+
+    // 4. Fallback to PostgreSQL if Neo4j returned 0 topics
+    if (!topics || topics.length === 0) {
+      const dbTopics = await this.prisma.topic.findMany({
+        where: { course_id: courseId },
+        orderBy: { sequence_number: 'asc' },
+      });
+
+      topics = dbTopics.map((t) => ({
+        topicId: t.topic_id,
+        title: t.topic_title,
+        sequenceNumber: t.sequence_number,
+        difficulty: t.difficulty_level || 'BEGINNER',
+      }));
+    }
+
+    // 5. If no explicit prerequisite edges exist, generate sequential progression links
+    if (links.length === 0 && topics.length > 1) {
+      for (let i = 0; i < topics.length - 1; i++) {
+        links.push({
+          source: topics[i].topicId,
+          target: topics[i + 1].topicId,
+          type: 'PREREQUISITE_FOR',
+        });
+      }
+    }
+
+    // 6. Enrich nodes with prerequisite status and mastery
+    const nodes = topics.map((t) => {
+      const state = knowledgeStates.get(t.topicId) || { score: null, proficiency: 'UNASSESSED' };
+      const incomingPrereqIds = links.filter((l) => l.target === t.topicId).map((l) => l.source);
+      const outgoingUnlockIds = links.filter((l) => l.source === t.topicId).map((l) => l.target);
+
+      // Check if all prerequisites are proficient/mastered
+      const prereqsMet = incomingPrereqIds.length === 0 || incomingPrereqIds.every((prereqId) => {
+        const prereqState = knowledgeStates.get(prereqId);
+        return prereqState && ['PROFICIENT', 'ADVANCED', 'MASTER'].includes(prereqState.proficiency);
+      });
+
+      let status = 'READY';
+      if (['MASTER', 'ADVANCED'].includes(state.proficiency)) {
+        status = 'MASTERED';
+      } else if (state.proficiency === 'PROFICIENT') {
+        status = 'PROFICIENT';
+      } else if (state.proficiency === 'DEVELOPING') {
+        status = 'DEVELOPING';
+      } else if (!prereqsMet) {
+        status = 'LOCKED';
+      } else {
+        status = 'READY';
+      }
+
+      return {
+        id: t.topicId,
+        title: t.title,
+        sequenceNumber: t.sequenceNumber,
+        difficulty: t.difficulty,
+        proficiency: state.proficiency,
+        score: state.score,
+        status,
+        prerequisites: incomingPrereqIds,
+        unlocks: outgoingUnlockIds,
+      };
+    });
+
+    const stats = {
+      total: nodes.length,
+      mastered: nodes.filter((n) => n.status === 'MASTERED').length,
+      proficient: nodes.filter((n) => n.status === 'PROFICIENT').length,
+      developing: nodes.filter((n) => n.status === 'DEVELOPING').length,
+      ready: nodes.filter((n) => n.status === 'READY').length,
+      locked: nodes.filter((n) => n.status === 'LOCKED').length,
+    };
+
+    return {
+      courseId,
+      nodes,
+      links,
+      stats,
+    };
+  }
 }
+

@@ -87,4 +87,14 @@ export class AdaptiveLearningController {
     const studentId = typeof req.user.user_id === 'string' ? parseInt(req.user.user_id, 10) : req.user.user_id;
     return this.adaptiveLearningService.askTutor(studentId, courseId, body);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('prerequisites-graph')
+  async getPrerequisitesGraph(
+    @Req() req: any,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    const studentId = typeof req.user.user_id === 'string' ? parseInt(req.user.user_id, 10) : req.user.user_id;
+    return this.adaptiveLearningService.getPrerequisitesGraph(studentId, courseId);
+  }
 }

@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import confetti from 'canvas-confetti';
 import CoachFeedback from '../components/learning/CoachFeedback';
 import AdaptiveJourneyStepper from '../components/learning/AdaptiveJourneyStepper';
+import PrerequisiteGraphModal from '../components/learning/PrerequisiteGraphModal';
 
 interface Resource {
   resource_id: number;
@@ -114,6 +115,22 @@ export default function CoursePlayer() {
   const [tutorError, setTutorError] = useState('');
   const lessonScrollRef = useRef<HTMLDivElement>(null);
   const mainViewerRef = useRef<HTMLDivElement>(null);
+  const zenScrollRef = useRef<HTMLDivElement>(null);
+
+  // Neo4j Knowledge Graph & Zen Focus Mode State
+  const [showGraphModal, setShowGraphModal] = useState<boolean>(false);
+  const [isZenMode, setIsZenMode] = useState<boolean>(false);
+  const [zenTheme, setZenTheme] = useState<'midnight' | 'slate' | 'warm'>('midnight');
+
+  const handleSelectTopicFromGraph = (topicId: number) => {
+    setActiveTopicId(topicId);
+    setActiveBlockIndex(0);
+    setTryAnswers({});
+    if (isAdaptiveMode) {
+      setActiveResource(null);
+      setActiveAssessmentId(null);
+    }
+  };
 
   const askTutor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -957,6 +974,43 @@ export default function CoursePlayer() {
     refreshConceptPerformance();
   }, [refreshConceptPerformance]);
 
+  // Global Keyboard shortcuts for Zen Mode and Graph Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      const isInput = activeTag === 'input' || activeTag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable;
+
+      if (e.key === 'Escape') {
+        if (showGraphModal) {
+          setShowGraphModal(false);
+          e.preventDefault();
+        } else if (isZenMode) {
+          setIsZenMode(false);
+          e.preventDefault();
+        }
+      } else if (!isInput && (e.key === 'z' || e.key === 'Z')) {
+        setIsZenMode(prev => !prev);
+        e.preventDefault();
+      } else if (!isInput && isZenMode && parsedAiLesson?.blocks) {
+        if (e.key === 'ArrowRight' || e.key === ' ') {
+          if (safeBlockIndex < parsedAiLesson.blocks.length - 1) {
+            handleAdaptiveNext();
+            e.preventDefault();
+          }
+        } else if (e.key === 'ArrowLeft') {
+          if (safeBlockIndex > 0) {
+            setActiveBlockIndex(prev => Math.max(0, prev - 1));
+            zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showGraphModal, isZenMode, parsedAiLesson, safeBlockIndex]);
+
   useEffect(() => {
     if (token) {
       const topicsToFetch = [...(course?.topics || []), ...(adaptivePath || [])];
@@ -1434,13 +1488,37 @@ export default function CoursePlayer() {
         <div className="flex flex-col lg:flex-row gap-6 -mx-4 md:-mx-10 px-4 md:px-10 pb-6 h-auto lg:h-[calc(100vh-140px)] lg:overflow-hidden">
           {/* Main Viewer Area */}
           <div ref={mainViewerRef} className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 lg:h-full lg:overflow-y-auto pr-2 custom-scrollbar">
-            <div className="flex items-center justify-between mb-4 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 shrink-0">
               <button onClick={() => navigate('/my-learning')} className="flex items-center text-text-secondary hover:text-primary transition-colors font-bold text-sm">
                 <span className="material-symbols-outlined mr-1">arrow_back</span> Back to My Learning
               </button>
-              <button onClick={() => navigate(`/learn/${courseSlug}/progress`)} className="flex items-center text-primary hover:text-primary/80 transition-colors font-bold text-sm bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 shadow-sm">
-                <span className="material-symbols-outlined mr-1 text-[18px]">insights</span> Mastery Dashboard
-              </button>
+              
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
+                  onClick={() => setShowGraphModal(true)} 
+                  className="flex items-center gap-1.5 text-on-surface hover:text-primary transition-all font-bold text-xs sm:text-sm bg-surface-container-highest/80 hover:bg-surface-container-highest px-3 py-1.5 rounded-xl border border-outline-variant/30 shadow-sm"
+                  title="Interactive Neo4j Knowledge & Prerequisite Graph"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-accent-neon">hub</span>
+                  <span>Knowledge Graph</span>
+                </button>
+
+                {isAdaptiveMode && parsedAiLesson && (
+                  <button 
+                    onClick={() => setIsZenMode(true)} 
+                    className="flex items-center gap-1.5 text-primary hover:text-primary/90 transition-all font-bold text-xs sm:text-sm bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-xl border border-primary/20 shadow-sm"
+                    title="Distraction-Free Zen Focus Mode (Press Z)"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">center_focus_strong</span>
+                    <span>Zen Mode</span>
+                    <kbd className="hidden sm:inline-block px-1.5 py-0.2 bg-white/70 dark:bg-black/30 rounded text-[10px] text-text-secondary border border-outline-variant/30 font-mono">Z</kbd>
+                  </button>
+                )}
+
+                <button onClick={() => navigate(`/learn/${courseSlug}/progress`)} className="flex items-center text-primary hover:text-primary/80 transition-colors font-bold text-xs sm:text-sm bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 shadow-sm">
+                  <span className="material-symbols-outlined mr-1 text-[18px]">insights</span> Mastery Dashboard
+                </button>
+              </div>
             </div>
             <h1 className="font-display-md text-2xl md:text-3xl tracking-tight leading-tight mb-6 shrink-0">{course.title}</h1>
             
@@ -1487,9 +1565,19 @@ export default function CoursePlayer() {
                               Personalized for: {(course.topics.find((t: any) => t.topic_id === activeTopicId) || (adaptivePath||[]).find(t => t.topicId === activeTopicId))?.proficiency || 'BEGINNER'} • {(user as any)?.teaching_preference || 'DIRECT'}
                             </p>
                           </div>
-                          <div className="bg-white/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/40 flex items-center gap-2 shadow-sm">
-                            <span className="material-symbols-outlined text-primary text-sm">schedule</span>
-                            <span className="text-xs font-bold text-primary">{Math.max(1, Math.ceil(aiLessonsData[activeTopicId].content.split(' ').length / 200))} min read</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsZenMode(true)}
+                              className="bg-white/80 dark:bg-black/40 hover:bg-white dark:hover:bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-outline-variant/30 text-primary text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                              title="Enter Zen Focus Mode (Distraction-Free) [Z]"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
+                              <span>Zen Mode</span>
+                            </button>
+                            <div className="bg-white/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/40 flex items-center gap-2 shadow-sm">
+                              <span className="material-symbols-outlined text-primary text-sm">schedule</span>
+                              <span className="text-xs font-bold text-primary">{Math.max(1, Math.ceil(aiLessonsData[activeTopicId].content.split(' ').length / 200))} min read</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2240,6 +2328,178 @@ export default function CoursePlayer() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Interactive Neo4j Knowledge & Prerequisite Graph Modal */}
+      {showGraphModal && course && user && (
+        <PrerequisiteGraphModal
+          courseId={course.course_id}
+          studentId={user.user_id}
+          activeTopicId={activeTopicId}
+          token={token}
+          onClose={() => setShowGraphModal(false)}
+          onSelectTopic={handleSelectTopicFromGraph}
+        />
+      )}
+
+      {/* Zen Focus Mode Immersive Overlay */}
+      {isZenMode && parsedAiLesson && parsedAiLesson.blocks && (
+        <div className={`fixed inset-0 z-50 flex flex-col overflow-hidden animate-fade-in ${
+          zenTheme === 'midnight'
+            ? 'bg-[#080c14] text-slate-100'
+            : zenTheme === 'warm'
+            ? 'bg-[#14100d] text-amber-50'
+            : 'bg-[#0f172a] text-slate-100'
+        }`}>
+          {/* Subtle Ambient Background Glows */}
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none -mt-20"></div>
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-accent-neon/10 rounded-full blur-3xl pointer-events-none -mb-20"></div>
+
+          {/* Reading Progress Line */}
+          <div className="fixed top-0 left-0 right-0 h-1 bg-white/10 z-50">
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-accent-neon transition-all duration-300"
+              style={{ width: `${((safeBlockIndex + 1) / parsedAiLesson.blocks.length) * 100}%` }}
+            />
+          </div>
+
+          {/* Floating Minimal Header Bar */}
+          <header className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0 backdrop-blur-md bg-black/30 z-40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-bold">
+                <span className="material-symbols-outlined text-[20px]">self_improvement</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm tracking-tight">{course?.title}</span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-xs text-text-secondary">{activeTopicObj?.topic_title || activeTopicObj?.title}</span>
+                </div>
+                <div className="text-[11px] text-text-secondary flex items-center gap-2 mt-0.5">
+                  <span>Block {safeBlockIndex + 1} of {parsedAiLesson.blocks.length}</span>
+                  <span>•</span>
+                  <span className="uppercase tracking-wider font-bold text-accent-neon">{parsedAiLesson.blocks[safeBlockIndex]?.type || 'LESSON'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Right */}
+            <div className="flex items-center gap-3">
+              {/* Theme Picker */}
+              <div className="hidden sm:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/10 text-xs">
+                <button
+                  onClick={() => setZenTheme('midnight')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'midnight' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                >
+                  Midnight
+                </button>
+                <button
+                  onClick={() => setZenTheme('slate')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'slate' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                >
+                  Slate
+                </button>
+                <button
+                  onClick={() => setZenTheme('warm')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${zenTheme === 'warm' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                >
+                  Warm
+                </button>
+              </div>
+
+              {/* Knowledge Graph Button */}
+              <button
+                onClick={() => setShowGraphModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px] text-accent-neon">hub</span>
+                <span className="hidden sm:inline">Knowledge Graph</span>
+              </button>
+
+              {/* Exit Zen Button */}
+              <button
+                onClick={() => setIsZenMode(false)}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+                <span>Exit Zen</span>
+                <kbd className="hidden sm:inline-block px-1 py-0.2 bg-black/40 rounded text-[9px] text-rose-200 font-mono">Esc</kbd>
+              </button>
+            </div>
+          </header>
+
+          {/* Reading Canvas */}
+          <div 
+            ref={zenScrollRef}
+            className="flex-1 overflow-y-auto custom-scrollbar px-4 py-8 sm:py-12"
+          >
+            <div className="max-w-3xl mx-auto pb-24">
+              {parsedAiLesson.blocks[safeBlockIndex]?.subTopicTitle && (
+                <div className="mb-6 inline-flex items-center gap-2 bg-accent-neon/15 text-accent-neon px-3.5 py-1.5 rounded-xl border border-accent-neon/30 text-xs font-bold shadow-sm">
+                  <span className="material-symbols-outlined text-[16px]">account_tree</span>
+                  <span>{parsedAiLesson.blocks[safeBlockIndex].subTopicTitle}</span>
+                </div>
+              )}
+
+              {/* The rendered lesson block */}
+              <div className="zen-content-wrapper">
+                {renderBlock(parsedAiLesson.blocks[safeBlockIndex], safeBlockIndex)}
+              </div>
+            </div>
+          </div>
+
+          {/* Floating Minimal Bottom Controls */}
+          <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/15 shadow-2xl">
+            <button
+              onClick={() => {
+                setActiveBlockIndex(prev => Math.max(0, prev - 1));
+                zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              disabled={safeBlockIndex === 0}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-bold flex items-center gap-1 transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+              <span className="hidden sm:inline">Prev</span>
+            </button>
+
+            {/* Stepper Dots */}
+            <div className="flex items-center gap-1.5 px-2">
+              {parsedAiLesson.blocks.map((_: any, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setActiveBlockIndex(idx);
+                    zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`transition-all rounded-full ${
+                    idx === safeBlockIndex
+                      ? 'w-6 h-2 bg-accent-neon'
+                      : idx < safeBlockIndex
+                      ? 'w-2 h-2 bg-white/60 hover:bg-white'
+                      : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+                  }`}
+                  title={`Block ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                handleAdaptiveNext();
+                zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              disabled={safeBlockIndex === parsedAiLesson.blocks.length - 1}
+              className="px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md shadow-primary/20"
+            >
+              <span>Next</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+
+            <span className="hidden md:inline-block text-[11px] text-white/40 pl-2 border-l border-white/15">
+              [←/→] Navigate • [Esc] Exit
+            </span>
+          </footer>
         </div>
       )}
 

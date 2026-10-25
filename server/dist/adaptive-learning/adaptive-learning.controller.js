@@ -50,6 +50,10 @@ let AdaptiveLearningController = class AdaptiveLearningController {
         const studentId = typeof req.user.user_id === 'string' ? parseInt(req.user.user_id, 10) : req.user.user_id;
         return this.adaptiveLearningService.askTutor(studentId, courseId, body);
     }
+    async getPrerequisitesGraph(req, courseId) {
+        const studentId = typeof req.user.user_id === 'string' ? parseInt(req.user.user_id, 10) : req.user.user_id;
+        return this.adaptiveLearningService.getPrerequisitesGraph(studentId, courseId);
+    }
 };
 exports.AdaptiveLearningController = AdaptiveLearningController;
 __decorate([
@@ -127,6 +131,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Object]),
     __metadata("design:returntype", Promise)
 ], AdaptiveLearningController.prototype, "askTutor", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Get)('prerequisites-graph'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('courseId', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], AdaptiveLearningController.prototype, "getPrerequisitesGraph", null);
 exports.AdaptiveLearningController = AdaptiveLearningController = __decorate([
     (0, common_1.Controller)('adaptive-learning/students/:studentId/courses/:courseId'),
     __metadata("design:paramtypes", [adaptive_learning_service_1.AdaptiveLearningService])

@@ -217,4 +217,31 @@ export declare class AdaptiveLearningController {
         target_proficiency: import(".prisma/client").$Enums.ProficiencyLevel | null;
     }>;
     askTutor(req: any, courseId: number, body: any): Promise<any>;
+    getPrerequisitesGraph(req: any, courseId: number): Promise<{
+        courseId: number;
+        nodes: {
+            id: number;
+            title: string;
+            sequenceNumber: number;
+            difficulty: string;
+            proficiency: string;
+            score: number | null;
+            status: string;
+            prerequisites: number[];
+            unlocks: number[];
+        }[];
+        links: {
+            source: number;
+            target: number;
+            type: string;
+        }[];
+        stats: {
+            total: number;
+            mastered: number;
+            proficient: number;
+            developing: number;
+            ready: number;
+            locked: number;
+        };
+    }>;
 }
