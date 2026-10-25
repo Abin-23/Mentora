@@ -89,7 +89,15 @@ export class CertificatesService {
   async getCertificates(studentId: number) {
     return this.prisma.certificate.findMany({
       where: { student_id: studentId },
-      include: { course: true }
+      include: { 
+        course: {
+          include: {
+            category: true,
+            course_admin: { select: { full_name: true } }
+          }
+        } 
+      },
+      orderBy: { issued_at: 'desc' }
     });
   }
 
@@ -98,7 +106,21 @@ export class CertificatesService {
       where: { credential_id: credentialId },
       include: {
         student: { select: { full_name: true, email: true } },
-        course: { select: { title: true, course_admin: { select: { full_name: true } } } }
+        course: { 
+          select: { 
+            course_id: true,
+            title: true, 
+            short_description: true,
+            difficulty_level: true,
+            duration_hours: true,
+            category: { select: { category_name: true } },
+            topics: {
+              select: { topic_id: true, topic_title: true, sequence_number: true },
+              orderBy: { sequence_number: 'asc' }
+            },
+            course_admin: { select: { full_name: true } } 
+          } 
+        }
       }
     });
     if (!cert) throw new BadRequestException('Invalid certificate credential ID');
