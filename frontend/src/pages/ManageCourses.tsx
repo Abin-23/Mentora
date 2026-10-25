@@ -281,7 +281,7 @@ export default function ManageCourses() {
               <div className="flex justify-between items-center border-t border-outline-variant/30 pt-4 mt-auto">
                 <div className="flex flex-col">
                   <span className="text-[10px] uppercase font-label-mono text-text-secondary tracking-widest">Price</span>
-                  <span className="font-bold text-primary">${Number(c.price).toFixed(2)}</span>
+                  <span className="font-bold text-primary">₹{Number(c.price).toFixed(2)}</span>
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[10px] uppercase font-label-mono text-text-secondary tracking-widest">Created By</span>

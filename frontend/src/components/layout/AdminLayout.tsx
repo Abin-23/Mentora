@@ -75,13 +75,6 @@ export default function AdminLayout({ children, user }: AdminLayoutProps) {
             <span className="material-symbols-outlined text-[20px]">person</span>
             <span className="font-label-mono text-label-mono">Profile</span>
           </Link>
-          
-          <div className="pt-4 mt-4 border-t border-white/10">
-            <Link to="/courses" className="flex items-center space-x-3 pl-4 py-2.5 rounded-xl text-white/70 hover:text-white hover:bg-white/5 transition-all duration-200">
-              <span className="material-symbols-outlined text-[20px]">visibility</span>
-              <span className="font-label-mono text-label-mono">Learner Portal</span>
-            </Link>
-          </div>
         </nav>
         
         <div className="mt-auto space-y-4">
