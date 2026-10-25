@@ -1384,6 +1384,30 @@ export default function CoursePlayer() {
                           </div>
                         )}
                         
+                        {/* Visual Adaptive Journey Stepper & Real-Time Mastery Radar (Inside lesson scroll stream, below AI content) */}
+                        <div className="max-w-4xl mx-auto mt-8 mb-4">
+                          <AdaptiveJourneyStepper
+                            stages={LEARNING_STAGES}
+                            currentStageIndex={currentStageIndex}
+                            highestCompletedIndex={highestCompletedStage}
+                            currentLabel={stageCurrentLabel}
+                            nextLabel={stageNextLabel}
+                            proficiency={topicProficiency}
+                            knowledgeScore={topicKnowledgeScore}
+                            weakConcepts={weakConceptsList}
+                            topicTitle={activeTopicObj?.topic_title}
+                            isGeneratingAssessment={generatingTopicId === activeTopicId}
+                            onStageClick={handleStageNavigation}
+                            onAskTutor={(prompt) => {
+                              setTutorQuery(prompt);
+                              setTutorOpen(true);
+                            }}
+                            onStartAssessment={() => {
+                              if (activeTopicId) handleStartTopicAssessment(activeTopicId);
+                            }}
+                          />
+                        </div>
+
                         {(!parsedAiLesson || safeBlockIndex === parsedAiLesson.blocks.length - 1) && (
                           <div className="mt-12 pt-8 border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
                           <div className="flex gap-3">
@@ -1459,28 +1483,6 @@ export default function CoursePlayer() {
                   </div>
                 )}
                 </div>
-
-                {/* 2. Visual Adaptive Journey Stepper & Real-Time Mastery Radar (Rendered below the AI content) */}
-                <AdaptiveJourneyStepper
-                  stages={LEARNING_STAGES}
-                  currentStageIndex={currentStageIndex}
-                  highestCompletedIndex={highestCompletedStage}
-                  currentLabel={stageCurrentLabel}
-                  nextLabel={stageNextLabel}
-                  proficiency={topicProficiency}
-                  knowledgeScore={topicKnowledgeScore}
-                  weakConcepts={weakConceptsList}
-                  topicTitle={activeTopicObj?.topic_title}
-                  isGeneratingAssessment={generatingTopicId === activeTopicId}
-                  onStageClick={handleStageNavigation}
-                  onAskTutor={(prompt) => {
-                    setTutorQuery(prompt);
-                    setTutorOpen(true);
-                  }}
-                  onStartAssessment={() => {
-                    if (activeTopicId) handleStartTopicAssessment(activeTopicId);
-                  }}
-                />
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 text-text-secondary p-10 text-center">
