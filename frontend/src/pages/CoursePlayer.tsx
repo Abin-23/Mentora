@@ -102,6 +102,8 @@ export default function CoursePlayer() {
   const [tutorResponse, setTutorResponse] = useState<any>(null);
   const [tutorLoading, setTutorLoading] = useState(false);
   const [tutorError, setTutorError] = useState('');
+  const lessonScrollRef = useRef<HTMLDivElement>(null);
+  const mainViewerRef = useRef<HTMLDivElement>(null);
 
   const askTutor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -387,9 +389,21 @@ export default function CoursePlayer() {
       const foundIdx = parsedAiLesson.blocks.findIndex((b: any) => allowed.includes(b.type));
       if (foundIdx !== -1) {
         setActiveBlockIndex(foundIdx);
+        lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
   };
+
+  // Scroll to top of lesson content on block or topic change
+  useEffect(() => {
+    if (lessonScrollRef.current) {
+      lessonScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (mainViewerRef.current) {
+      mainViewerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [safeBlockIndex, activeTopicId]);
 
   const renderBlock = (block: any, index: number) => {
     switch (block.type) {
@@ -702,6 +716,9 @@ export default function CoursePlayer() {
 
   const handleAdaptiveNext = () => {
     if (!parsedAiLesson) return;
+    
+    lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     
     const currentBlock = parsedAiLesson.blocks[activeBlockIndex];
     
@@ -1238,7 +1255,7 @@ export default function CoursePlayer() {
       ) : course ? (
         <div className="flex flex-col lg:flex-row gap-6 -mx-4 md:-mx-10 px-4 md:px-10 pb-6 h-auto lg:h-[calc(100vh-140px)] lg:overflow-hidden">
           {/* Main Viewer Area */}
-          <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 lg:h-full lg:overflow-y-auto pr-2 custom-scrollbar">
+          <div ref={mainViewerRef} className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 lg:h-full lg:overflow-y-auto pr-2 custom-scrollbar">
             <div className="flex items-center justify-between mb-4 shrink-0">
               <button onClick={() => navigate('/my-learning')} className="flex items-center text-text-secondary hover:text-primary transition-colors font-bold text-sm">
                 <span className="material-symbols-outlined mr-1">arrow_back</span> Back to My Learning
@@ -1265,30 +1282,9 @@ export default function CoursePlayer() {
                 </div>
               </div>
             ) : isAdaptiveMode && activeTopicId ? (
-              <div className="flex-1 flex flex-col min-h-0 mb-6">
-                {/* Visual Adaptive Stepper & Real-Time Mastery Radar */}
-                <AdaptiveJourneyStepper
-                  stages={LEARNING_STAGES}
-                  currentStageIndex={currentStageIndex}
-                  highestCompletedIndex={highestCompletedStage}
-                  currentLabel={stageCurrentLabel}
-                  nextLabel={stageNextLabel}
-                  proficiency={topicProficiency}
-                  knowledgeScore={topicKnowledgeScore}
-                  weakConcepts={weakConceptsList}
-                  topicTitle={activeTopicObj?.topic_title}
-                  isGeneratingAssessment={generatingTopicId === activeTopicId}
-                  onStageClick={handleStageNavigation}
-                  onAskTutor={(prompt) => {
-                    setTutorQuery(prompt);
-                    setTutorOpen(true);
-                  }}
-                  onStartAssessment={() => {
-                    if (activeTopicId) handleStartTopicAssessment(activeTopicId);
-                  }}
-                />
-
-                <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-outline-variant/30 overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0 gap-6 mb-6">
+                {/* 1. Personalized AI Lesson (On top, full visibility) */}
+                <div className="flex-1 flex flex-col min-h-[520px] bg-white rounded-3xl shadow-sm border border-outline-variant/30 overflow-hidden">
                 {loadingAiLesson === activeTopicId ? (
                   <div className="flex flex-col items-center justify-center p-20 text-text-secondary h-full">
                     <span className="material-symbols-outlined text-5xl animate-spin text-primary mb-4">refresh</span>
@@ -1321,6 +1317,7 @@ export default function CoursePlayer() {
                       </div>
                       
                       <div 
+                        ref={lessonScrollRef}
                         className="p-6 md:p-8 text-base text-on-surface overflow-y-auto custom-scrollbar flex-1 relative animate-fade-in-up"
                         onScroll={(e) => {
                           const target = e.target as HTMLElement;
@@ -1340,7 +1337,11 @@ export default function CoursePlayer() {
                             
                             <div className="flex justify-between items-center mt-8 pt-6 border-t border-outline-variant/30">
                               <button 
-                                onClick={() => setActiveBlockIndex(prev => Math.max(0, prev - 1))}
+                                onClick={() => {
+                                  setActiveBlockIndex(prev => Math.max(0, prev - 1));
+                                  lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                  mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
                                 disabled={safeBlockIndex === 0}
                                 className="px-4 py-2 bg-surface-container-low text-text-secondary hover:bg-surface-container-highest transition-colors rounded-lg font-bold disabled:opacity-30 disabled:pointer-events-none flex items-center gap-2"
                               >
@@ -1458,6 +1459,28 @@ export default function CoursePlayer() {
                   </div>
                 )}
                 </div>
+
+                {/* 2. Visual Adaptive Journey Stepper & Real-Time Mastery Radar (Rendered below the AI content) */}
+                <AdaptiveJourneyStepper
+                  stages={LEARNING_STAGES}
+                  currentStageIndex={currentStageIndex}
+                  highestCompletedIndex={highestCompletedStage}
+                  currentLabel={stageCurrentLabel}
+                  nextLabel={stageNextLabel}
+                  proficiency={topicProficiency}
+                  knowledgeScore={topicKnowledgeScore}
+                  weakConcepts={weakConceptsList}
+                  topicTitle={activeTopicObj?.topic_title}
+                  isGeneratingAssessment={generatingTopicId === activeTopicId}
+                  onStageClick={handleStageNavigation}
+                  onAskTutor={(prompt) => {
+                    setTutorQuery(prompt);
+                    setTutorOpen(true);
+                  }}
+                  onStartAssessment={() => {
+                    if (activeTopicId) handleStartTopicAssessment(activeTopicId);
+                  }}
+                />
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 text-text-secondary p-10 text-center">
