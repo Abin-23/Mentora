@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import confetti from 'canvas-confetti';
 import CoachFeedback from '../components/learning/CoachFeedback';
+import AdaptiveJourneyStepper from '../components/learning/AdaptiveJourneyStepper';
 
 interface Resource {
   resource_id: number;
@@ -286,6 +287,109 @@ export default function CoursePlayer() {
   }
 
   const safeBlockIndex = parsedAiLesson ? Math.min(activeBlockIndex, Math.max(0, parsedAiLesson.blocks.length - 1)) : activeBlockIndex;
+
+  // Active topic object for Adaptive Journey & Radar
+  const activeTopicObj = course?.topics.find((t: any) => t.topic_id === activeTopicId) 
+    || (adaptivePath || []).find((t: any) => (t.topicId || t.topic_id) === activeTopicId);
+
+  const topicProficiency = activeTopicObj?.proficiency 
+    || (activeTopicId ? knowledgeStates[activeTopicId]?.proficiency : undefined)
+    || 'UNASSESSED';
+
+  const topicKnowledgeScore = activeTopicId ? knowledgeStates[activeTopicId]?.score : undefined;
+
+  const isMasterTopic = topicProficiency === 'ADVANCED' || topicProficiency === 'MASTER';
+  const isProficientTopic = topicProficiency === 'PROFICIENT' || isMasterTopic;
+
+  let highestCompletedStage = -1;
+  if (isMasterTopic) {
+    highestCompletedStage = 5;
+  } else if (isProficientTopic) {
+    highestCompletedStage = 4;
+  } else {
+    const hasTried = Object.keys(submittedTryAnswers).length > 0;
+    const hasPracticed = Object.keys(submittedPracticeAnswers).length > 0;
+    let passedConcept = false;
+    let passedExample = false;
+
+    if (parsedAiLesson && parsedAiLesson.blocks) {
+      for (let i = 0; i < safeBlockIndex; i++) {
+        if (parsedAiLesson.blocks[i]?.type === 'CONCEPT') passedConcept = true;
+        if (parsedAiLesson.blocks[i]?.type === 'EXAMPLE') passedExample = true;
+      }
+    }
+
+    if (hasPracticed) highestCompletedStage = 3;
+    else if (hasTried) highestCompletedStage = 2;
+    else if (passedExample) highestCompletedStage = 1;
+    else if (passedConcept || safeBlockIndex > 0) highestCompletedStage = 0;
+  }
+
+  let currentStageIndex = Math.min(5, highestCompletedStage + 1);
+  if (parsedAiLesson && parsedAiLesson.blocks && parsedAiLesson.blocks[safeBlockIndex]) {
+    const blockType = parsedAiLesson.blocks[safeBlockIndex].type;
+    if (blockType === 'CONCEPT') currentStageIndex = 0;
+    else if (blockType === 'EXAMPLE') currentStageIndex = 1;
+    else if (blockType === 'TRY') currentStageIndex = 2;
+    else if (blockType === 'PRACTICE' || blockType === 'CHALLENGE') currentStageIndex = 3;
+    else if (blockType === 'RECAP') currentStageIndex = isMasterTopic ? 5 : 4;
+  }
+
+  let stageCurrentLabel = 'Learning Concept';
+  if (parsedAiLesson && parsedAiLesson.blocks && parsedAiLesson.blocks[safeBlockIndex]) {
+    const currentBlockType = parsedAiLesson.blocks[safeBlockIndex].type;
+    switch(currentBlockType) {
+      case 'CONCEPT': stageCurrentLabel = 'Learning Concept'; break;
+      case 'EXAMPLE': stageCurrentLabel = 'Understanding Example'; break;
+      case 'TRY': stageCurrentLabel = 'Trying it Out'; break;
+      case 'PRACTICE': stageCurrentLabel = 'Practicing Skills'; break;
+      case 'CHALLENGE': stageCurrentLabel = 'Checking Knowledge'; break;
+      case 'RECAP': stageCurrentLabel = isMasterTopic ? 'Mastery Achieved' : 'Reviewing'; break;
+    }
+  } else if (isMasterTopic) {
+    stageCurrentLabel = 'Mastery Achieved';
+  } else if (isProficientTopic) {
+    stageCurrentLabel = 'Testing Knowledge';
+  }
+
+  let stageNextLabel = '';
+  if (!isMasterTopic) {
+    if (currentStageIndex === 0) stageNextLabel = 'Review the real-world example';
+    else if (currentStageIndex === 1) stageNextLabel = 'Complete interactive Try quiz';
+    else if (currentStageIndex === 2) stageNextLabel = 'Submit hands-on Practice challenge';
+    else if (currentStageIndex === 3) stageNextLabel = 'Take topic check assessment';
+    else if (currentStageIndex === 4) stageNextLabel = 'Pass assessment to achieve mastery';
+  }
+
+  const weakConceptsList = Object.entries(conceptPerformance)
+    .filter(([_, perf]) => perf === 'WEAK' || perf === 'DEVELOPING')
+    .map(([tag]) => tag);
+
+  const handleStageNavigation = (stageIdx: number) => {
+    if (stageIdx === 4 || stageIdx === 5) {
+      if (activeTopicId) {
+        handleStartTopicAssessment(activeTopicId);
+      }
+      return;
+    }
+
+    if (!parsedAiLesson || !parsedAiLesson.blocks) return;
+
+    const targetTypes: Record<number, string[]> = {
+      0: ['CONCEPT'],
+      1: ['EXAMPLE'],
+      2: ['TRY'],
+      3: ['PRACTICE', 'CHALLENGE'],
+    };
+
+    const allowed = targetTypes[stageIdx];
+    if (allowed) {
+      const foundIdx = parsedAiLesson.blocks.findIndex((b: any) => allowed.includes(b.type));
+      if (foundIdx !== -1) {
+        setActiveBlockIndex(foundIdx);
+      }
+    }
+  };
 
   const renderBlock = (block: any, index: number) => {
     switch (block.type) {
@@ -1161,7 +1265,30 @@ export default function CoursePlayer() {
                 </div>
               </div>
             ) : isAdaptiveMode && activeTopicId ? (
-              <div className="flex-1 flex flex-col h-full bg-white rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden mb-6">
+              <div className="flex-1 flex flex-col min-h-0 mb-6">
+                {/* Visual Adaptive Stepper & Real-Time Mastery Radar */}
+                <AdaptiveJourneyStepper
+                  stages={LEARNING_STAGES}
+                  currentStageIndex={currentStageIndex}
+                  highestCompletedIndex={highestCompletedStage}
+                  currentLabel={stageCurrentLabel}
+                  nextLabel={stageNextLabel}
+                  proficiency={topicProficiency}
+                  knowledgeScore={topicKnowledgeScore}
+                  weakConcepts={weakConceptsList}
+                  topicTitle={activeTopicObj?.topic_title}
+                  isGeneratingAssessment={generatingTopicId === activeTopicId}
+                  onStageClick={handleStageNavigation}
+                  onAskTutor={(prompt) => {
+                    setTutorQuery(prompt);
+                    setTutorOpen(true);
+                  }}
+                  onStartAssessment={() => {
+                    if (activeTopicId) handleStartTopicAssessment(activeTopicId);
+                  }}
+                />
+
+                <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-outline-variant/30 overflow-hidden">
                 {loadingAiLesson === activeTopicId ? (
                   <div className="flex flex-col items-center justify-center p-20 text-text-secondary h-full">
                     <span className="material-symbols-outlined text-5xl animate-spin text-primary mb-4">refresh</span>
@@ -1259,11 +1386,26 @@ export default function CoursePlayer() {
                         {(!parsedAiLesson || safeBlockIndex === parsedAiLesson.blocks.length - 1) && (
                           <div className="mt-12 pt-8 border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
                           <div className="flex gap-3">
-                            <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest hover:bg-surface-container-highest transition-colors rounded-xl border border-outline-variant/30 text-sm font-bold text-text-secondary">
+                            <button 
+                              onClick={() => {
+                                setTutorQuery(`Could you explain "${activeTopicObj?.topic_title || 'this topic'}" in simpler terms with an everyday analogy?`);
+                                setTutorOpen(true);
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest hover:bg-surface-container-highest transition-colors rounded-xl border border-outline-variant/30 text-sm font-bold text-text-secondary hover:text-primary shadow-sm"
+                            >
                               <span className="material-symbols-outlined text-[18px]">psychology_alt</span> Explain Simpler
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest hover:bg-surface-container-highest transition-colors rounded-xl border border-outline-variant/30 text-sm font-bold text-text-secondary">
-                              <span className="material-symbols-outlined text-[18px]">quiz</span> Test Me
+                            <button 
+                              onClick={() => {
+                                if (activeTopicId) {
+                                  handleStartTopicAssessment(activeTopicId);
+                                }
+                              }}
+                              disabled={generatingTopicId === activeTopicId}
+                              className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest hover:bg-surface-container-highest transition-colors rounded-xl border border-outline-variant/30 text-sm font-bold text-text-secondary hover:text-primary shadow-sm disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">quiz</span>
+                              {generatingTopicId === activeTopicId ? 'Preparing Quiz...' : 'Test Me'}
                             </button>
                           </div>
                           
@@ -1315,6 +1457,7 @@ export default function CoursePlayer() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 text-text-secondary p-10 text-center">
