@@ -395,6 +395,10 @@ export default function CoursePlayer() {
 
   const safeBlockIndex = parsedAiLesson ? Math.min(activeBlockIndex, Math.max(0, parsedAiLesson.blocks.length - 1)) : activeBlockIndex;
 
+  const isNextDisabled = !parsedAiLesson || safeBlockIndex === parsedAiLesson.blocks.length - 1 || 
+    (parsedAiLesson.blocks[safeBlockIndex]?.type === 'TRY' && submittedTryAnswers[safeBlockIndex] === undefined) || 
+    ((parsedAiLesson.blocks[safeBlockIndex]?.type === 'PRACTICE' || parsedAiLesson.blocks[safeBlockIndex]?.type === 'CHALLENGE') && submittedPracticeAnswers[safeBlockIndex] === undefined);
+
   // Active topic object for Adaptive Journey & Radar
   const activeTopicObj = course?.topics.find((t: any) => t.topic_id === activeTopicId) 
     || (adaptivePath || []).find((t: any) => (t.topicId || t.topic_id) === activeTopicId);
@@ -1230,16 +1234,18 @@ export default function CoursePlayer() {
       } else if (!isInput && (e.key === 'z' || e.key === 'Z')) {
         setIsZenMode(prev => !prev);
         e.preventDefault();
-      } else if (!isInput && isZenMode && parsedAiLesson?.blocks) {
-        if (e.key === 'ArrowRight' || e.key === ' ') {
-          if (safeBlockIndex < parsedAiLesson.blocks.length - 1) {
+      } else if (!isInput && parsedAiLesson?.blocks) {
+        if (e.key === 'ArrowRight' || (isZenMode && e.key === ' ')) {
+          if (!isNextDisabled) {
             handleAdaptiveNext();
             e.preventDefault();
           }
         } else if (e.key === 'ArrowLeft') {
           if (safeBlockIndex > 0) {
             setActiveBlockIndex(prev => Math.max(0, prev - 1));
+            lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
             zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
             e.preventDefault();
           }
         }
@@ -1248,7 +1254,7 @@ export default function CoursePlayer() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showGraphModal, isZenMode, parsedAiLesson, safeBlockIndex]);
+  }, [showGraphModal, isZenMode, parsedAiLesson, safeBlockIndex, isNextDisabled]);
 
   useEffect(() => {
     if (token) {
@@ -1804,7 +1810,40 @@ export default function CoursePlayer() {
                               Personalized for: {(course.topics.find((t: any) => t.topic_id === activeTopicId) || (adaptivePath||[]).find(t => t.topicId === activeTopicId))?.proficiency || 'BEGINNER'} • {(user as any)?.teaching_preference || 'DIRECT'}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
+                            {parsedAiLesson && (
+                              <div className="flex items-center gap-1 bg-white/80 dark:bg-black/40 backdrop-blur-md p-1 rounded-xl border border-outline-variant/30 shadow-sm">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveBlockIndex(prev => Math.max(0, prev - 1));
+                                    lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                    mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  disabled={safeBlockIndex === 0}
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container-high disabled:opacity-30 disabled:pointer-events-none text-on-surface transition-colors"
+                                  title="Previous Slide (←)"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                                </button>
+                                
+                                <span className="text-xs font-bold text-on-surface px-1.5 min-w-[55px] text-center select-none">
+                                  {safeBlockIndex + 1} / {parsedAiLesson.blocks.length}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={handleAdaptiveNext}
+                                  disabled={isNextDisabled}
+                                  className="px-3 h-8 rounded-lg bg-primary text-white text-xs font-bold flex items-center gap-1 hover:bg-primary/90 disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95 shadow-sm"
+                                  title="Next Slide (→)"
+                                >
+                                  <span>Next</span>
+                                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                                </button>
+                              </div>
+                            )}
+
                             <button
                               onClick={() => setIsZenMode(true)}
                               className="bg-white/80 dark:bg-black/40 hover:bg-white dark:hover:bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-outline-variant/30 text-primary text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
@@ -1840,31 +1879,49 @@ export default function CoursePlayer() {
                             )}
                             {renderBlock(parsedAiLesson.blocks[safeBlockIndex], safeBlockIndex)}
                             
-                            <div className="flex justify-between items-center mt-8 pt-6 border-t border-outline-variant/30">
+                            <div className="flex items-center justify-between mt-8 pt-6 border-t border-outline-variant/30 gap-4">
                               <button 
+                                type="button"
                                 onClick={() => {
                                   setActiveBlockIndex(prev => Math.max(0, prev - 1));
                                   lessonScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                                   mainViewerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 disabled={safeBlockIndex === 0}
-                                className="px-4 py-2 bg-surface-container-low text-text-secondary hover:bg-surface-container-highest transition-colors rounded-lg font-bold disabled:opacity-30 disabled:pointer-events-none flex items-center gap-2"
+                                className="shrink-0 min-w-[105px] px-4 py-2.5 bg-surface-container-low text-text-secondary hover:text-primary hover:bg-surface-container-highest transition-all rounded-xl font-bold disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2 border border-outline-variant/30"
                               >
-                                <span className="material-symbols-outlined text-sm">arrow_back</span> Previous
+                                <span className="material-symbols-outlined text-base">arrow_back</span>
+                                <span>Previous</span>
                               </button>
                               
-                              <div className="text-sm font-bold text-text-secondary flex gap-1">
-                                {parsedAiLesson.blocks.map((_: any, idx: number) => (
-                                  <div key={idx} className={`w-2 h-2 rounded-full ${idx === safeBlockIndex ? 'bg-primary' : idx < safeBlockIndex ? 'bg-primary/30' : 'bg-outline-variant/30'}`}></div>
-                                ))}
+                              {/* Responsive, never-overflowing slide counter & progress bar */}
+                              <div className="flex flex-col items-center gap-1.5 px-2 min-w-0 max-w-[280px] w-full">
+                                <div className="flex items-center gap-2 text-xs font-bold text-text-secondary truncate">
+                                  <span className="text-on-surface font-extrabold">Slide {safeBlockIndex + 1}</span>
+                                  <span className="text-text-secondary/50 font-normal">of</span>
+                                  <span>{parsedAiLesson.blocks.length}</span>
+                                  {parsedAiLesson.blocks[safeBlockIndex]?.type && (
+                                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-surface-container-high text-primary border border-outline-variant/30">
+                                      {parsedAiLesson.blocks[safeBlockIndex].type}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="w-full h-1.5 bg-outline-variant/30 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-primary transition-all duration-300 rounded-full"
+                                    style={{ width: `${((safeBlockIndex + 1) / parsedAiLesson.blocks.length) * 100}%` }}
+                                  />
+                                </div>
                               </div>
 
                               <button 
+                                type="button"
                                 onClick={handleAdaptiveNext}
-                                disabled={safeBlockIndex === parsedAiLesson.blocks.length - 1 || (parsedAiLesson.blocks[safeBlockIndex].type === 'TRY' && submittedTryAnswers[safeBlockIndex] === undefined) || ((parsedAiLesson.blocks[safeBlockIndex].type === 'PRACTICE' || parsedAiLesson.blocks[safeBlockIndex].type === 'CHALLENGE') && submittedPracticeAnswers[safeBlockIndex] === undefined)}
-                                className="px-4 py-2 bg-primary text-white rounded-lg font-bold disabled:opacity-30 disabled:bg-surface-container-highest disabled:text-text-secondary flex items-center gap-2 transition-colors hover:bg-primary/90"
+                                disabled={isNextDisabled}
+                                className="shrink-0 min-w-[110px] px-5 py-2.5 bg-primary text-white rounded-xl font-bold disabled:opacity-30 disabled:bg-surface-container-highest disabled:text-text-secondary flex items-center justify-center gap-2 transition-all hover:bg-primary/90 shadow-md active:scale-95"
                               >
-                                Next <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                <span>Next</span>
+                                <span className="material-symbols-outlined text-base">arrow_forward</span>
                               </button>
                             </div>
                           </div>
@@ -2746,33 +2803,49 @@ export default function CoursePlayer() {
               <span className="hidden sm:inline">Prev</span>
             </button>
 
-            {/* Stepper Dots */}
-            <div className="flex items-center gap-1.5 px-2">
-              {parsedAiLesson.blocks.map((_: any, idx: number) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setActiveBlockIndex(idx);
-                    zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`transition-all rounded-full ${
-                    idx === safeBlockIndex
-                      ? 'w-6 h-2 bg-accent-neon'
-                      : idx < safeBlockIndex
-                      ? 'w-2 h-2 bg-white/60 hover:bg-white'
-                      : 'w-2 h-2 bg-white/20 hover:bg-white/40'
-                  }`}
-                  title={`Block ${idx + 1}`}
-                />
-              ))}
-            </div>
+            {/* Stepper Dots or Progress Bar */}
+            {parsedAiLesson.blocks.length <= 10 ? (
+              <div className="flex items-center gap-1.5 px-2">
+                {parsedAiLesson.blocks.map((_: any, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setActiveBlockIndex(idx);
+                      zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`transition-all rounded-full ${
+                      idx === safeBlockIndex
+                        ? 'w-6 h-2 bg-accent-neon'
+                        : idx < safeBlockIndex
+                        ? 'w-2 h-2 bg-white/60 hover:bg-white'
+                        : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+                    }`}
+                    title={`Block ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 px-3">
+                <span className="text-xs font-extrabold text-white">
+                  {safeBlockIndex + 1} <span className="text-white/40 font-normal">/ {parsedAiLesson.blocks.length}</span>
+                </span>
+                <div className="w-20 sm:w-28 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent-neon rounded-full transition-all duration-300"
+                    style={{ width: `${((safeBlockIndex + 1) / parsedAiLesson.blocks.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             <button
+              type="button"
               onClick={() => {
                 handleAdaptiveNext();
                 zenScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              disabled={safeBlockIndex === parsedAiLesson.blocks.length - 1}
+              disabled={isNextDisabled}
               className="px-4 py-1.5 rounded-xl bg-accent-neon hover:bg-accent-neon/90 disabled:opacity-30 disabled:pointer-events-none text-black text-xs font-extrabold flex items-center gap-1 transition-all shadow-md shadow-accent-neon/20 active:scale-95"
             >
               <span>Next</span>
