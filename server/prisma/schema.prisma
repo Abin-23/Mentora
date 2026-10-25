@@ -240,7 +240,7 @@ model Purchase {
   updated_at         DateTime      @updatedAt @db.Timestamp(6)
 
   user        User         @relation("UserPurchases", fields: [user_id], references: [user_id])
-  course      Course       @relation("CoursePurchases", fields: [course_id], references: [course_id])
+  course      Course       @relation("CoursePurchases", fields: [course_id], references: [course_id], onDelete: Cascade)
   enrollments Enrollment[] @relation("PurchaseEnrollments")
 
   @@map("purchases")
@@ -258,8 +258,8 @@ model Enrollment {
   updated_at        DateTime         @updatedAt @db.Timestamp(6)
 
   user     User      @relation("UserEnrollments", fields: [user_id], references: [user_id])
-  course   Course    @relation("CourseEnrollments", fields: [course_id], references: [course_id])
-  purchase Purchase? @relation("PurchaseEnrollments", fields: [purchase_id], references: [purchase_id])
+  course   Course    @relation("CourseEnrollments", fields: [course_id], references: [course_id], onDelete: Cascade)
+  purchase Purchase? @relation("PurchaseEnrollments", fields: [purchase_id], references: [purchase_id], onDelete: Cascade)
 
   @@map("enrollments")
 }

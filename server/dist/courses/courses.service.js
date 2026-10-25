@@ -282,9 +282,120 @@ let CoursesService = class CoursesService {
             course.course_admin_id !== user.user_id) {
             throw new common_1.ForbiddenException('You can only delete your own courses');
         }
-        return this.prisma.course.delete({
-            where: { course_id: id },
+        const deletedCourse = await this.prisma.$transaction(async (tx) => {
+            await tx.certificate.deleteMany({
+                where: { course_id: id },
+            });
+            await tx.studentCourseGoal.deleteMany({
+                where: { course_id: id },
+            });
+            await tx.learningActivity.deleteMany({
+                where: { course_id: id },
+            });
+            await tx.learningProgress.deleteMany({
+                where: { course_id: id },
+            });
+            await tx.enrollment.deleteMany({
+                where: { course_id: id },
+            });
+            await tx.purchase.deleteMany({
+                where: { course_id: id },
+            });
+            const topics = await tx.topic.findMany({
+                where: { course_id: id },
+                select: { topic_id: true },
+            });
+            const topicIds = topics.map((t) => t.topic_id);
+            const assessments = await tx.assessment.findMany({
+                where: { course_id: id },
+                select: { assessment_id: true },
+            });
+            const assessmentIds = assessments.map((a) => a.assessment_id);
+            if (assessmentIds.length > 0) {
+                const attempts = await tx.assessmentAttempt.findMany({
+                    where: { assessment_id: { in: assessmentIds } },
+                    select: { attempt_id: true },
+                });
+                const attemptIds = attempts.map((att) => att.attempt_id);
+                if (attemptIds.length > 0) {
+                    await tx.assessmentIntegrityReport.deleteMany({
+                        where: { attempt_id: { in: attemptIds } },
+                    });
+                    await tx.assessmentSecurityEvent.deleteMany({
+                        where: { attempt_id: { in: attemptIds } },
+                    });
+                    await tx.studentAnswer.deleteMany({
+                        where: { attempt_id: { in: attemptIds } },
+                    });
+                    await tx.assessmentTopicResult.deleteMany({
+                        where: { attempt_id: { in: attemptIds } },
+                    });
+                    await tx.assessmentAttempt.deleteMany({
+                        where: { attempt_id: { in: attemptIds } },
+                    });
+                }
+                await tx.assessmentQuestionMap.deleteMany({
+                    where: { assessment_id: { in: assessmentIds } },
+                });
+                await tx.assessmentTopic.deleteMany({
+                    where: { assessment_id: { in: assessmentIds } },
+                });
+                await tx.assessment.deleteMany({
+                    where: { course_id: id },
+                });
+            }
+            if (topicIds.length > 0) {
+                await tx.topicAILesson.deleteMany({
+                    where: { topic_id: { in: topicIds } },
+                });
+                await tx.assessmentTopicResult.deleteMany({
+                    where: { topic_id: { in: topicIds } },
+                });
+                await tx.assessmentTopic.deleteMany({
+                    where: { topic_id: { in: topicIds } },
+                });
+                const questions = await tx.question.findMany({
+                    where: { topic_id: { in: topicIds } },
+                    select: { question_id: true },
+                });
+                const questionIds = questions.map((q) => q.question_id);
+                if (questionIds.length > 0) {
+                    await tx.studentAnswer.deleteMany({
+                        where: { question_id: { in: questionIds } },
+                    });
+                    await tx.assessmentQuestionMap.deleteMany({
+                        where: { question_id: { in: questionIds } },
+                    });
+                    await tx.questionOption.deleteMany({
+                        where: { question_id: { in: questionIds } },
+                    });
+                    await tx.question.deleteMany({
+                        where: { topic_id: { in: topicIds } },
+                    });
+                }
+                await tx.resource.deleteMany({
+                    where: { topic_id: { in: topicIds } },
+                });
+                await tx.topic.deleteMany({
+                    where: { course_id: id },
+                });
+            }
+            return tx.course.delete({
+                where: { course_id: id },
+            });
         });
+        try {
+            await this.neo4jService.write(`
+        MATCH (c:Course {courseId: toInteger($courseId)})
+        OPTIONAL MATCH (c)-[:HAS_TOPIC]->(t:Topic)
+        DETACH DELETE c, t
+        `, { courseId: neo4j_driver_1.default.int(id) });
+            console.log(`Successfully removed Course #${id} from Neo4j`);
+        }
+        catch (neoErr) {
+            console.error(`Error deleting Course #${id} from Neo4j:`, neoErr);
+        }
+        return deletedCourse;
     }
 };
 exports.CoursesService = CoursesService;
